@@ -1,3 +1,4 @@
+<!-- Speed+ v1.0 — single-file GPS speed app for iPhone (vanilla HTML/JS, no frameworks) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,12 +13,14 @@
   --ok:#57d98a; --warn:#ffb454; --bad:#ff6b6b;
   --odo-bg:#0a0d10; --odo-txt:#e8eef5; --odo-frac:#ff5c5c;
   --shadow:0 2px 10px rgba(0,0,0,.45);
+  --sky:#153a5f; --ground:#4d3b28;
 }
 html[data-theme="light"]{
   --bg:#eef1f5; --card:#ffffff; --card2:#f4f6f9; --line:#d7dee7;
   --txt:#18202a; --dim:#5c6b7a; --acc:#e08a00; --cy:#0077b6;
   --ok:#1f9d55; --warn:#c77800; --bad:#d64545;
   --odo-bg:#1a2027; --shadow:0 2px 8px rgba(30,45,60,.15);
+  --sky:#7fb9dd; --ground:#a5836b;
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 html,body{margin:0;height:100%;}
@@ -40,11 +43,14 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
   display:flex;align-items:center;justify-content:center;flex:none;
 }
 .font-btn:active{background:var(--card2);}
-.speed-readout{display:flex;align-items:baseline;gap:8px;justify-content:center;}
-#speedVal{font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.5px;color:var(--acc);line-height:.95;}
-#speedUnit{font-size:16px;font-weight:700;color:var(--dim);}
-.speed-sub{display:flex;justify-content:center;gap:14px;color:var(--dim);font-size:12.5px;font-variant-numeric:tabular-nums;min-height:16px;}
-.speed-sub b{color:var(--txt);font-weight:600;}
+.speed-readout{display:flex;align-items:baseline;gap:.12em;justify-content:center;font-size:calc(var(--sp-base,64px)*var(--font-scale,1));}
+.speed-val{font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.5px;color:var(--acc);line-height:.95;font-size:1em;}
+.speed-val.over{color:var(--bad);}
+.speed-unit-lbl{font-size:.26em;font-weight:700;color:var(--dim);}
+.speed-sub-box{display:flex;justify-content:center;gap:14px;color:var(--dim);font-size:12.5px;font-variant-numeric:tabular-nums;min-height:16px;}
+.speed-sub-box b{color:var(--txt);font-weight:600;}
+.limit-btn{align-self:center;font-size:11px;color:var(--dim);}
+.limit-btn.set{color:var(--acc);border-color:var(--acc);}
 /* ---------- card grid ---------- */
 .grid{display:grid;gap:10px;grid-template-columns:1fr 1fr;}
 .card{
@@ -84,31 +90,47 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
 /* compass */
 .compass-wrap{display:flex;align-items:center;gap:10px;}
 .rose{width:86px;height:86px;flex:none;}
-#roseDial{transform-origin:50% 50%;}
+.rose-dial{transform-origin:50% 50%;}
 .compass-read{display:flex;flex-direction:column;gap:2px;}
-#headingDeg{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;}
-#headingCard{font-size:15px;font-weight:700;color:var(--cy);}
+.hdg-deg{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;}
+.hdg-card{font-size:15px;font-weight:700;color:var(--cy);}
 /* tilt */
 .tilt-wrap{display:flex;align-items:center;gap:10px;}
 .bubble{width:86px;height:86px;flex:none;border-radius:50%;background:var(--card2);border:1px solid var(--line);position:relative;overflow:hidden;}
 .bubble::before{content:"";position:absolute;left:50%;top:8px;bottom:8px;width:1px;background:var(--line);}
 .bubble::after{content:"";position:absolute;top:50%;left:8px;right:8px;height:1px;background:var(--line);}
-#bubbleDot{position:absolute;width:14px;height:14px;border-radius:50%;background:var(--cy);left:50%;top:50%;margin:-7px 0 0 -7px;transition:left .12s linear,top .12s linear;}
+.bubble-dot{position:absolute;width:14px;height:14px;border-radius:50%;background:var(--cy);left:50%;top:50%;margin:-7px 0 0 -7px;transition:left .12s linear,top .12s linear;}
 .tilt-read{display:flex;flex-direction:column;gap:4px;font-size:13px;}
 .tilt-read .v{font-variant-numeric:tabular-nums;font-weight:700;}
+/* ---------- pager ---------- */
+.pages{display:flex;flex:1 1 auto;min-height:0;overflow:hidden;touch-action:pan-y;}
+.page{flex:0 0 100%;width:100%;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-bottom:4px;}
+.page-speed,.page-speedtrip,.page-gps,.page-tilt{justify-content:center;align-items:center;}
+.page-speed{--sp-base:clamp(64px,24vw,130px);}
+.page-speedtrip{--sp-base:clamp(56px,20vw,110px);}
+.page-speedtrip .card.trip{width:100%;max-width:420px;}
+.page-gps .card{width:100%;max-width:420px;}
+.page-tilt .card{width:100%;max-width:400px;}
+.dots{display:flex;justify-content:center;gap:9px;padding:3px 0;}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--line);padding:0;}
+.dot.on{background:var(--acc);}
+.swipe-hint{align-self:center;background:var(--card2);border:1px solid var(--line);color:var(--dim);font-size:12px;padding:6px 14px;border-radius:99px;pointer-events:none;}
+/* ---------- artificial horizon ---------- */
+.hzn{width:min(64vw,250px);height:auto;display:block;margin:2px auto 0;}
+.hzn-move{transform-origin:50px 50px;transition:transform .12s linear;}
 /* footer controls */
-.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:auto;padding-bottom:2px;}
+.controls{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:auto;padding-bottom:2px;}
 .unit-sel{
   appearance:none;-webkit-appearance:none;background:var(--card);border:1px solid var(--line);
-  color:var(--txt);font-weight:700;font-size:13px;border-radius:10px;padding:9px 26px 9px 12px;
+  color:var(--txt);font-weight:700;font-size:12.5px;border-radius:9px;padding:8px 24px 8px 10px;width:76px;
   background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);
-  background-position:calc(100% - 14px) 55%,calc(100% - 9px) 55%;background-size:5px 5px;background-repeat:no-repeat;
+  background-position:calc(100% - 13px) 55%,calc(100% - 8px) 55%;background-size:5px 5px;background-repeat:no-repeat;
 }
-.btn{border-radius:10px;padding:9px 14px;font-weight:700;font-size:13.5px;border:1px solid var(--line);background:var(--card);}
+.btn{border-radius:9px;padding:8px 11px;font-weight:700;font-size:12.5px;border:1px solid var(--line);background:var(--card);}
 .btn:active{opacity:.75;}
 .btn.primary{background:var(--acc);color:#1a1206;border-color:transparent;flex:1;}
 .btn.danger{color:var(--bad);}
-.icon-btn{width:40px;height:38px;display:flex;align-items:center;justify-content:center;font-size:17px;border-radius:10px;background:var(--card);border:1px solid var(--line);}
+.icon-btn{width:38px;height:36px;display:flex;align-items:center;justify-content:center;font-size:16px;border-radius:9px;background:var(--card);border:1px solid var(--line);}
 .spacer{flex:1;}
 /* banners + overlays */
 .banner{display:none;background:var(--card);border:1px solid var(--warn);color:var(--txt);border-radius:12px;padding:9px 12px;font-size:13px;gap:8px;align-items:center;}
@@ -138,12 +160,12 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
 @keyframes fig{0%{transform:translateX(-26px) rotate(0)}50%{transform:translateX(26px) rotate(180deg)}100%{transform:translateX(-26px) rotate(360deg)}}
 /* landscape layout */
 @media (orientation:landscape){
-  .app{flex-direction:row;align-items:stretch;}
-  .speed-col{display:flex;flex-direction:column;justify-content:center;gap:8px;width:min(42%,290px);flex:none;}
+  .page-overview{flex-direction:row;align-items:center;}
+  .speed-col{display:flex;flex-direction:column;justify-content:center;gap:8px;width:min(40%,300px);flex:none;}
   .grid{grid-template-columns:repeat(3,1fr);align-content:center;flex:1;}
   .card.trip{grid-column:auto;grid-row:span 2;}
-  .controls{width:auto;flex-direction:column;align-items:stretch;justify-content:center;min-width:150px;}
-  .controls .btn.primary{flex:none;padding:12px;}
+  .page-gps{flex-direction:row;align-items:center;gap:12px;}
+  .page-gps .card{max-width:none;flex:1;}
 }
 @media (orientation:portrait){
   .speed-col{display:flex;flex-direction:column;gap:6px;}
@@ -157,7 +179,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
 <div id="onboard" class="overlay">
   <div class="panel">
     <h1>Speed<span class="plus">+</span></h1>
-    <p>GPS speed, trip meters, odometer, compass &amp; tilt. Pick a GPS mode first — you can change it anytime.</p>
+    <p>GPS speed, trip meters, odometer, compass &amp; tilt. Pick a GPS mode first.</p>
     <div class="choice" id="sampleChoice">
       <button data-mode="basic"><span>Basic</span><small>Power saving · lower accuracy, ~1 Hz updates</small></button>
       <button data-mode="accurate" class="sel"><span>Most Accurate</span><small>High power use · best speed &amp; fix details</small></button>
@@ -184,75 +206,197 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
   </div>
 </div>
 
-<main class="app">
-  <section class="speed-col">
-    <header class="speed-zone">
-      <button id="fontMinus" class="font-btn" aria-label="Smaller speed">−</button>
-      <div class="speed-readout"><span id="speedVal">0.0</span><span id="speedUnit">MPH</span></div>
-      <button id="fontPlus" class="font-btn" aria-label="Larger speed">+</button>
-    </header>
-    <div class="speed-sub" id="speedSub"></div>
-    <div class="banner" id="gpsBanner"><span>⚠️</span><span id="gpsBannerMsg"></span></div>
-  </section>
+<div id="limitModal" class="overlay hidden">
+  <div class="panel">
+    <h1 style="font-size:20px">Speed limit</h1>
+    <p id="limitModalHint">The speed turns red when you go over it.</p>
+    <input id="limitInput" class="odo-input" type="number" inputmode="decimal" step="any" min="0">
+    <div class="btnrow"><button class="btn danger" id="limitClear">Clear</button><span style="flex:1"></span><button class="btn" id="limitCancel">Cancel</button><button class="btn primary" id="limitSave">Save</button></div>
+  </div>
+</div>
 
-  <section class="grid">
-    <div class="card trip">
-      <h2>Trip <span class="tag" id="tripState">Stopped</span></h2>
-      <div class="row"><span class="k">Distance</span><span class="v big" id="tripDist">0.00 km</span></div>
-      <div class="row"><span class="k">Total time</span><span class="v" id="tripTotal">00:00:00</span></div>
-      <div class="row"><span class="k">Moving</span><span class="v" id="tripMove">00:00:00</span></div>
-      <div class="row"><span class="k">Idle</span><span class="v" id="tripIdle">00:00:00</span></div>
-      <div class="row"><span class="k">Avg (total)</span><span class="v" id="tripAvgAll">—</span></div>
-      <div class="row"><span class="k">Avg (moving)</span><span class="v" id="tripAvgMove">—</span></div>
-      <div class="row"><span class="k">Max speed</span><span class="v" id="tripMax">—</span></div>
-    </div>
+<main class="app">
+  <div id="pages" class="pages">
+
+    <!-- page 1 · overview -->
+    <section class="page page-overview">
+      <div class="speed-col">
+        <header class="speed-zone">
+          <button class="font-btn" data-font="-1" aria-label="Smaller speed">−</button>
+          <div class="speed-readout"><span class="speed-val">0.0</span><span class="speed-unit-lbl">MPH</span></div>
+          <button class="font-btn" data-font="1" aria-label="Larger speed">+</button>
+        </header>
+        <div class="speed-sub-box"></div>
+        <button class="limit-btn">Set limit</button>
+        <div class="banner gps-banner"><span>⚠️</span><span class="gps-banner-msg"></span></div>
+      </div>
+
+      <section class="grid">
+      <div class="card trip">
+        <h2>Trip <span class="tag" data-bind="tripState">Stopped</span></h2>
+        <div class="row"><span class="k">Distance</span><span class="v big" data-bind="tripDist">0.00 km</span></div>
+        <div class="row"><span class="k">Total time</span><span class="v" data-bind="tripTotal">00:00:00</span></div>
+        <div class="row"><span class="k">Moving</span><span class="v" data-bind="tripMove">00:00:00</span></div>
+        <div class="row"><span class="k">Idle</span><span class="v" data-bind="tripIdle">00:00:00</span></div>
+        <div class="row"><span class="k">Avg (total)</span><span class="v" data-bind="tripAvgAll">—</span></div>
+        <div class="row"><span class="k">Avg (moving)</span><span class="v" data-bind="tripAvgMove">—</span></div>
+        <div class="row"><span class="k">Max speed</span><span class="v" data-bind="tripMax">—</span></div>
+      </div>
 
     <div class="card">
       <h2>Odometer <button class="odo-edit" id="odoEditBtn">Set</button></h2>
       <div class="odo"><div class="odo-digits" id="odoDigits"></div><span class="odo-label" id="odoLabel">km</span></div>
     </div>
 
-    <div class="card">
-      <h2>Location <span class="hdr-btns"><button class="mini-btn" id="coordFmtBtn">DMS</button><button class="mini-btn" id="copyBtn">Copy</button></span></h2>
-      <div class="coords">
-        <div class="coord-line"><span class="k" style="color:var(--dim);font-size:12px">LAT</span><span class="v" id="latVal">—</span></div>
-        <div class="coord-line"><span class="k" style="color:var(--dim);font-size:12px">LON</span><span class="v" id="lonVal">—</span></div>
+      <div class="card">
+        <h2>Location <span class="hdr-btns"><button class="mini-btn coord-fmt-btn">DMS</button><button class="mini-btn copy-btn">Copy</button></span></h2>
+        <div class="coords">
+          <div class="coord-line"><span class="k" style="color:var(--dim);font-size:12px">LAT</span><span class="v" data-bind="latVal">—</span></div>
+          <div class="coord-line"><span class="k" style="color:var(--dim);font-size:12px">LON</span><span class="v" data-bind="lonVal">—</span></div>
+        </div>
+        <a class="maps-link" href="#" target="_blank" rel="noopener">Open in Apple Maps ↗</a>
+        <div class="row"><span class="k">Accuracy</span><span class="v" data-bind="gpsAcc">—</span></div>
+        <div class="row"><span class="k">Altitude</span><span class="v" data-bind="gpsAlt">—</span></div>
+        <div class="row"><span class="k">Fix age</span><span class="v" data-bind="gpsAge">—</span></div>
+        <div class="row"><span class="k">Fix quality</span><span class="v" data-bind="gpsQual">—</span></div>
+        <div class="row"><span class="k">GPS mode</span><button class="mini-btn gps-mode-btn">Accurate</button></div>
       </div>
-      <a class="maps-link" id="mapsLink" href="#" target="_blank" rel="noopener">Open in Apple Maps ↗</a>
-      <div class="row"><span class="k">Accuracy</span><span class="v" id="gpsAcc">—</span></div>
-      <div class="row"><span class="k">Altitude</span><span class="v" id="gpsAlt">—</span></div>
-      <div class="row"><span class="k">Fix age</span><span class="v" id="gpsAge">—</span></div>
-      <div class="row"><span class="k">Fix quality</span><span class="v" id="gpsQual">—</span></div>
-      <div class="row"><span class="k">GPS mode</span><button class="mini-btn" id="gpsModeBtn">Accurate</button></div>
-    </div>
 
-    <div class="card">
-      <h2>Compass <span class="tag" id="compassTag">off</span></h2>
-      <div class="compass-wrap">
-        <svg class="rose" viewBox="0 0 100 100" aria-hidden="true">
-          <circle cx="50" cy="50" r="47" fill="var(--card2)" stroke="var(--line)"/>
-          <g id="roseDial"></g>
-          <path d="M50 4 L55 16 L45 16 Z" fill="var(--bad)"/>
-        </svg>
-        <div class="compass-read">
-          <span id="headingDeg">—</span>
-          <span id="headingCard">—</span>
+      <div class="card">
+        <h2>Compass <span class="tag compass-tag">off</span></h2>
+        <div class="compass-wrap">
+          <svg class="rose" viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="50" cy="50" r="47" fill="var(--card2)" stroke="var(--line)"/>
+            <g class="rose-dial"></g>
+            <path d="M50 4 L55 16 L45 16 Z" fill="var(--bad)"/>
+          </svg>
+          <div class="compass-read">
+            <span class="hdg-deg" data-bind="headingDeg">—</span>
+            <span class="hdg-card" data-bind="headingCard">—</span>
+          </div>
+        </div>
+        <button class="mini-btn calib-btn">Calibrate</button>
+      </div>
+
+      <div class="card">
+        <h2>Pitch / Roll</h2>
+        <div class="tilt-wrap">
+          <div class="bubble"><div class="bubble-dot"></div></div>
+          <div class="tilt-read">
+            <div><span style="color:var(--dim)">Pitch</span> <span class="v" data-bind="pitchVal">0.0°</span></div>
+            <div><span style="color:var(--dim)">Roll</span> <span class="v" data-bind="rollVal">0.0°</span></div>
+          </div>
         </div>
       </div>
-      <button class="mini-btn" id="calibBtn">Calibrate</button>
-    </div>
-
-    <div class="card">
-      <h2>Pitch / Roll</h2>
-      <div class="tilt-wrap">
-        <div class="bubble"><div id="bubbleDot"></div></div>
-        <div class="tilt-read">
-          <div><span style="color:var(--dim)">Pitch</span> <span class="v" id="pitchVal">0.0°</span></div>
-          <div><span style="color:var(--dim)">Roll</span> <span class="v" id="rollVal">0.0°</span></div>
-        </div>
-      </div>
-    </div>
+    </section>
   </section>
+
+    <!-- page 2 · speed -->
+    <section class="page page-speed">
+      <header class="speed-zone">
+        <button class="font-btn" data-font="-1" aria-label="Smaller speed">−</button>
+        <div class="speed-readout"><span class="speed-val">0.0</span><span class="speed-unit-lbl">MPH</span></div>
+        <button class="font-btn" data-font="1" aria-label="Larger speed">+</button>
+      </header>
+      <div class="speed-sub-box"></div>
+      <button class="limit-btn">Set limit</button>
+      <div class="banner gps-banner"><span>⚠️</span><span class="gps-banner-msg"></span></div>
+    </section>
+
+    <!-- page 3 · speed + trip -->
+    <section class="page page-speedtrip">
+      <header class="speed-zone">
+        <button class="font-btn" data-font="-1" aria-label="Smaller speed">−</button>
+        <div class="speed-readout"><span class="speed-val">0.0</span><span class="speed-unit-lbl">MPH</span></div>
+        <button class="font-btn" data-font="1" aria-label="Larger speed">+</button>
+      </header>
+      <div class="speed-sub-box"></div>
+      <button class="limit-btn">Set limit</button>
+      <div class="banner gps-banner"><span>⚠️</span><span class="gps-banner-msg"></span></div>
+      <div class="card trip">
+        <h2>Trip <span class="tag" data-bind="tripState">Stopped</span></h2>
+        <div class="row"><span class="k">Distance</span><span class="v big" data-bind="tripDist">0.00 km</span></div>
+        <div class="row"><span class="k">Total time</span><span class="v" data-bind="tripTotal">00:00:00</span></div>
+        <div class="row"><span class="k">Moving</span><span class="v" data-bind="tripMove">00:00:00</span></div>
+        <div class="row"><span class="k">Idle</span><span class="v" data-bind="tripIdle">00:00:00</span></div>
+        <div class="row"><span class="k">Avg (total)</span><span class="v" data-bind="tripAvgAll">—</span></div>
+        <div class="row"><span class="k">Avg (moving)</span><span class="v" data-bind="tripAvgMove">—</span></div>
+        <div class="row"><span class="k">Max speed</span><span class="v" data-bind="tripMax">—</span></div>
+      </div>
+    </section>
+
+    <!-- page 4 · GPS details + compass -->
+    <section class="page page-gps">
+      <div class="card">
+        <h2>Location <span class="hdr-btns"><button class="mini-btn coord-fmt-btn">DMS</button><button class="mini-btn copy-btn">Copy</button></span></h2>
+        <div class="coords">
+          <div class="coord-line"><span class="k" style="color:var(--dim);font-size:12px">LAT</span><span class="v" data-bind="latVal">—</span></div>
+          <div class="coord-line"><span class="k" style="color:var(--dim);font-size:12px">LON</span><span class="v" data-bind="lonVal">—</span></div>
+        </div>
+        <a class="maps-link" href="#" target="_blank" rel="noopener">Open in Apple Maps ↗</a>
+        <div class="row"><span class="k">Accuracy</span><span class="v" data-bind="gpsAcc">—</span></div>
+        <div class="row"><span class="k">Altitude</span><span class="v" data-bind="gpsAlt">—</span></div>
+        <div class="row"><span class="k">Fix age</span><span class="v" data-bind="gpsAge">—</span></div>
+        <div class="row"><span class="k">Fix quality</span><span class="v" data-bind="gpsQual">—</span></div>
+        <div class="row"><span class="k">GPS mode</span><button class="mini-btn gps-mode-btn">Accurate</button></div>
+      </div>
+      <div class="card">
+        <h2>Compass <span class="tag compass-tag">off</span></h2>
+        <div class="compass-wrap">
+          <svg class="rose" viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="50" cy="50" r="47" fill="var(--card2)" stroke="var(--line)"/>
+            <g class="rose-dial"></g>
+            <path d="M50 4 L55 16 L45 16 Z" fill="var(--bad)"/>
+          </svg>
+          <div class="compass-read">
+            <span class="hdg-deg" data-bind="headingDeg">—</span>
+            <span class="hdg-card" data-bind="headingCard">—</span>
+          </div>
+        </div>
+        <button class="mini-btn calib-btn">Calibrate</button>
+      </div>
+    </section>
+
+    <!-- page 5 · pitch / roll -->
+    <section class="page page-tilt">
+      <div class="card">
+        <h2>Pitch / Roll</h2>
+        <svg class="hzn" viewBox="0 0 100 100" aria-hidden="true">
+          <defs><clipPath id="hznClip"><circle cx="50" cy="50" r="46"/></clipPath></defs>
+          <g clip-path="url(#hznClip)">
+            <g class="hzn-move">
+              <rect x="-50" y="-100" width="200" height="150" fill="var(--sky)"/>
+              <rect x="-50" y="50" width="200" height="150" fill="var(--ground)"/>
+              <line x1="-50" y1="50" x2="150" y2="50" stroke="#fff" stroke-width="1.6"/>
+              <line x1="36" y1="36" x2="64" y2="36" stroke="#fff" stroke-width="1.2"/>
+              <line x1="36" y1="64" x2="64" y2="64" stroke="#fff" stroke-width="1.2"/>
+              <line x1="30" y1="22" x2="68" y2="22" stroke="#fff" stroke-width="1.2"/>
+              <line x1="30" y1="78" x2="68" y2="78" stroke="#fff" stroke-width="1.2"/>
+            </g>
+          </g>
+          <circle cx="50" cy="50" r="46" fill="none" stroke="var(--line)" stroke-width="2.5"/>
+          <path d="M28 50 h14 l5 -5 h6 l5 5 h14" fill="none" stroke="var(--acc)" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+        <div class="tilt-wrap">
+          <div class="bubble"><div class="bubble-dot"></div></div>
+          <div class="tilt-read">
+            <div><span style="color:var(--dim)">Pitch</span> <span class="v" data-bind="pitchVal">0.0°</span></div>
+            <div><span style="color:var(--dim)">Roll</span> <span class="v" data-bind="rollVal">0.0°</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /#pages -->
+
+  <div id="swipeHint" class="swipe-hint">← swipe for more views →</div>
+  <nav id="dots" class="dots" aria-label="Views">
+    <button class="dot on" data-i="0" aria-label="Overview"></button>
+    <button class="dot" data-i="1" aria-label="Speed"></button>
+    <button class="dot" data-i="2" aria-label="Speed and trip"></button>
+    <button class="dot" data-i="3" aria-label="GPS and compass"></button>
+    <button class="dot" data-i="4" aria-label="Pitch and roll"></button>
+  </nav>
 
   <footer class="controls">
     <button id="tripBtn" class="btn primary">Start Trip</button>
@@ -287,6 +431,8 @@ function fmtDMS(v,ns){ const a=Math.abs(v),d=a|0,m=(a-d)*60|0,s=((a-d)*60-m)*60;
 function fmtCoord(v,ns){ return S.coordFmt==="dms"?fmtDMS(v,ns):v.toFixed(5); }
 function screenAngle(){ try{ if(screen.orientation&&screen.orientation.angle!=null) return ((screen.orientation.angle%360)+360)%360; }catch(e){} return ((window.orientation||0)%360+360)%360; }
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+// write a value to every element bound to key k (duplicated across swipe pages)
+function put(k,v){ const el=$(k); if(el) el.textContent=v; document.querySelectorAll('[data-bind="'+k+'"]').forEach(n=>n.textContent=v); }
 
 /* ---------- state ---------- */
 const S={
@@ -297,6 +443,7 @@ const S={
   sampling:store.get("sampling","accurate"),
   odoBase:store.get("odoBase",0),   // meters, user-set reference
   odoAcc:store.get("odoAcc",0),     // meters, accumulated distance
+  limitMps:store.get("limit",null), // m/s, speed-limit warning (unit-independent)
   trip:{active:false,startTs:0,lastTs:0,distM:0,moveMs:0,idleMs:0,maxMps:0,moving:false,pendTarget:null,pendTs:0},
   gps:{lat:null,lon:null,acc:null,alt:null,altAcc:null,speed:0,heading:null,ts:0},
   compass:{on:false,heading:null,samples:[],state:"off",lastPrompt:0},
@@ -305,19 +452,19 @@ const S={
 
 /* ---------- theme / unit / font prefs ---------- */
 function applyTheme(){ document.documentElement.dataset.theme=S.theme; $("themeBtn").textContent=S.theme==="dark"?"☀️":"🌙"; }
-function applyUnit(){ $("unitSel").value=S.unit; $("speedUnit").textContent=UNITS[S.unit].label; $("odoLabel").textContent=S.unit==="mph"?"miles":"km"; buildOdo(); renderSpeed(true); }
-function applyFont(){ $("speedVal").style.fontSize=(64*S.fontScale)+"px"; }
-function applyCoordFmt(){ $("coordFmtBtn").textContent=S.coordFmt==="dd"?"DMS":"DEC"; renderLocation(); }
+function applyUnit(){ $("unitSel").value=S.unit; document.querySelectorAll(".speed-unit-lbl").forEach(n=>n.textContent=UNITS[S.unit].label); $("odoLabel").textContent=S.unit==="mph"?"miles":"km"; buildOdo(); updateLimitBtns(); renderSpeed(true); }
+function applyFont(){ document.documentElement.style.setProperty("--font-scale",S.fontScale); } // readout sizes are clamp() × this var
+function applyCoordFmt(){ document.querySelectorAll(".coord-fmt-btn").forEach(b=>b.textContent=S.coordFmt==="dd"?"DMS":"DEC"); renderLocation(); }
 /* ---------- geolocation ---------- */
 let watchId=null;
 const gpsOpts=()=>S.sampling==="accurate"?{enableHighAccuracy:true,maximumAge:0,timeout:15000}:{enableHighAccuracy:false,maximumAge:5000,timeout:20000};
 function startGps(){ if(watchId!=null||!navigator.geolocation) return; watchId=navigator.geolocation.watchPosition(onGps,onGpsErr,gpsOpts()); }
 function stopGps(){ if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null;} }
-function setGpsMode(m){ S.sampling=m; store.set("sampling",m); $("gpsModeBtn").textContent=m==="accurate"?"Accurate":"Basic"; stopGps(); startGps(); }
+function setGpsMode(m){ S.sampling=m; store.set("sampling",m); document.querySelectorAll(".gps-mode-btn").forEach(b=>b.textContent=m==="accurate"?"Accurate":"Basic"); stopGps(); startGps(); }
 function onGps(p){ const c=p.coords; S.gps={lat:c.latitude,lon:c.longitude,acc:c.accuracy,alt:c.altitude,altAcc:c.altitudeAccuracy,speed:c.speed==null?0:Math.max(0,c.speed),heading:c.heading,ts:Date.now()}; hideBanner(); tickTrip(Date.now()); }
 function onGpsErr(e){ showBanner(e.code===1?"Location permission denied — allow it in Settings → Safari → Location.":"Waiting for a GPS fix…"); }
-function showBanner(msg){ $("gpsBannerMsg").textContent=msg; $("gpsBanner").classList.add("show"); }
-function hideBanner(){ $("gpsBanner").classList.remove("show"); }
+function showBanner(msg){ document.querySelectorAll(".gps-banner-msg").forEach(n=>n.textContent=msg); document.querySelectorAll(".gps-banner").forEach(b=>b.classList.add("show")); }
+function hideBanner(){ document.querySelectorAll(".gps-banner").forEach(b=>b.classList.remove("show")); }
 
 /* ---------- trip engine (moving vs idle) ---------- */
 const MOVE_TH=5/3.6, STOP_TH=2.9/3.6; // m/s thresholds with hysteresis
@@ -341,7 +488,7 @@ const card16=h=>CARD16[Math.round(h/22.5)%16];
 function buildRose(){ let s=""; for(let d=0;d<360;d+=15){ const maj=d%45===0, r1=maj?37:42, a=(d-90)*Math.PI/180;
   s+=`<line x1="${(50+r1*Math.cos(a)).toFixed(1)}" y1="${(50+r1*Math.sin(a)).toFixed(1)}" x2="${(50+46*Math.cos(a)).toFixed(1)}" y2="${(50+46*Math.sin(a)).toFixed(1)}" stroke="var(--${maj?"txt":"dim"})" stroke-width="${maj?2:1}"/>`; }
   [["N",0],["E",90],["S",180],["W",270]].forEach(([t,d])=>{ const a=(d-90)*Math.PI/180; s+=`<text x="${(50+29*Math.cos(a)).toFixed(1)}" y="${(53+29*Math.sin(a)).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--${t==="N"?"bad":"txt"})">${t}</text>`; });
-  $("roseDial").innerHTML=s; }
+  document.querySelectorAll(".rose-dial").forEach(g=>g.innerHTML=s); }
 function onOrient(e){ if(!S.compass.on) return; const a=e.alpha; if(a==null) return;
   // heading = direction the top of the screen points (works for portrait & landscape mounts)
   S.compass.heading=((360-a+screenAngle())%360+360)%360;
@@ -362,7 +509,7 @@ function compassStability(){ const c=S.compass, now=performance.now(); c.samples
     let trav=0; for(let i=1;i<c.samples.length;i++) trav+=circDiff(c.samples[i][1],c.samples[i-1][1]);
     const rate=trav/4; c.state=rate>25?"unstable":rate>8?"drifting":"stable"; }
   if(c.state==="unstable"&&Date.now()-c.lastPrompt>6e4){ c.lastPrompt=Date.now(); $("calibOverlay").classList.remove("hidden"); }
-  const tag=$("compassTag"); tag.textContent=c.state; tag.className="tag "+(c.state==="stable"?"ok":c.state==="unstable"?"bad":"warn"); }
+  document.querySelectorAll(".compass-tag").forEach(tag=>{ tag.textContent=c.state; tag.className="tag compass-tag "+(c.state==="stable"?"ok":c.state==="unstable"?"bad":"warn"); }); }
 async function enableSensors(){ const DOE=window.DeviceOrientationEvent;
   if(DOE&&typeof DOE.requestPermission==="function"){ try{ if(await DOE.requestPermission()!=="granted") return false; }catch(e){ return false; } }
   window.addEventListener("deviceorientationabsolute",onOrient,true);
@@ -387,39 +534,46 @@ let dispSp=0;
 function renderSpeed(){ const g=S.gps, fresh=g.ts&&Date.now()-g.ts<4e3;
   const target=fresh?(g.speed||0):0;
   dispSp+=(target-dispSp)*0.45; if(Math.abs(target-dispSp)<0.02) dispSp=target;
-  $("speedVal").textContent=fmtSpeed(dispSp,S.unit);
+  const txt=fmtSpeed(dispSp,S.unit);
+  document.querySelectorAll(".speed-val").forEach(n=>{ n.textContent=txt; n.classList.toggle("over",S.limitMps!=null&&dispSp>S.limitMps); });
   const others=S.unit==="mph"?["kph","ms"]:S.unit==="kph"?["mph","ms"]:S.unit==="ms"?["mph","kph"]:["mph","kph"];
-  $("speedSub").innerHTML=others.map(u=>`<b>${fmtSpeed(dispSp,u)}</b> ${UNITS[u].label}`).join(" · "); }
+  let sub=others.map(u=>`<b>${fmtSpeed(dispSp,u)}</b> ${UNITS[u].label}`).join(" · ");
+  if(S.limitMps!=null&&dispSp>S.limitMps) sub+=` · <b class="over">+${fmtSpeed(dispSp-S.limitMps,S.unit)} ${UNITS[S.unit].label} over</b>`;
+  document.querySelectorAll(".speed-sub-box").forEach(n=>n.innerHTML=sub); }
 function renderLocation(){ const g=S.gps;
-  if(g.lat==null){ $("latVal").textContent="—"; $("lonVal").textContent="—"; return; }
-  $("latVal").textContent=fmtCoord(g.lat,["N","S"]); $("lonVal").textContent=fmtCoord(g.lon,["E","W"]);
-  $("mapsLink").href=`https://maps.apple.com/?ll=${g.lat},${g.lon}`;
-  $("gpsAcc").textContent="±"+Math.round(g.acc)+" m";
-  $("gpsAlt").textContent=g.alt==null?"—":Math.round(g.alt)+" m"+(g.altAcc?` (±${Math.round(g.altAcc)})`:"");
-  const age=(Date.now()-g.ts)/1e3; $("gpsAge").textContent=age<90?Math.round(age)+" s":fmtDur(age*1e3);
-  $("gpsQual").textContent=g.acc<10?"Excellent":g.acc<25?"Good":g.acc<60?"Fair":"Poor"; }
+  if(g.lat==null){ put("latVal","—"); put("lonVal","—"); return; }
+  put("latVal",fmtCoord(g.lat,["N","S"])); put("lonVal",fmtCoord(g.lon,["E","W"]));
+  document.querySelectorAll(".maps-link").forEach(a=>a.href=`https://maps.apple.com/?ll=${g.lat},${g.lon}`);
+  const FT=3.28084; // m → ft (GPS details shown in feet)
+  put("gpsAcc","±"+Math.round(g.acc*FT)+" ft");
+  put("gpsAlt",g.alt==null?"—":Math.round(g.alt*FT)+" ft"+(g.altAcc?` (±${Math.round(g.altAcc*FT)})`:""));
+  const age=(Date.now()-g.ts)/1e3; put("gpsAge",age<90?Math.round(age)+" s":fmtDur(age*1e3));
+  put("gpsQual",g.acc<10?"Excellent":g.acc<25?"Good":g.acc<60?"Fair":"Poor"); }
 function renderTrip(){ const t=S.trip, now=Date.now();
-  $("tripState").textContent=t.active?(t.moving?"Moving":"Stopped"):"Off";
-  $("tripState").className="tag "+(t.active?(t.moving?"ok":"warn"):"");
-  $("tripDist").textContent=fmtDist(t.distM,S.unit);
+  put("tripState",t.active?(t.moving?"Moving":"Stopped"):"Off");
+  document.querySelectorAll('[data-bind="tripState"]').forEach(n=>n.className="tag "+(t.active?(t.moving?"ok":"warn"):""));
+  put("tripDist",fmtDist(t.distM,S.unit));
   const total=t.active?now-t.startTs:t.moveMs+t.idleMs;
-  $("tripTotal").textContent=fmtDur(total);
-  $("tripMove").textContent=fmtDur(t.moveMs);
-  $("tripIdle").textContent=fmtDur(t.idleMs);
+  put("tripTotal",fmtDur(total));
+  put("tripMove",fmtDur(t.moveMs));
+  put("tripIdle",fmtDur(t.idleMs));
   const lab=" "+UNITS[S.unit].label;
-  $("tripAvgAll").textContent=t.distM>1&&total>0?fmtSpeed(t.distM/(total/1e3),S.unit)+lab:"—";
-  $("tripAvgMove").textContent=t.distM>1&&t.moveMs>0?fmtSpeed(t.distM/(t.moveMs/1e3),S.unit)+lab:"—";
-  $("tripMax").textContent=t.maxMps>0.5?fmtSpeed(t.maxMps,S.unit)+lab:"—"; }
+  put("tripAvgAll",t.distM>1&&total>0?fmtSpeed(t.distM/(total/1e3),S.unit)+lab:"—");
+  put("tripAvgMove",t.distM>1&&t.moveMs>0?fmtSpeed(t.distM/(t.moveMs/1e3),S.unit)+lab:"—");
+  put("tripMax",t.maxMps>0.5?fmtSpeed(t.maxMps,S.unit)+lab:"—"); }
 let sensorRaf=0;
 function scheduleSensorRender(){ if(!sensorRaf) sensorRaf=requestAnimationFrame(()=>{sensorRaf=0;renderSensors();}); }
 function renderSensors(){ if(S.compass.on&&S.compass.heading!=null){
-    $("roseDial").style.transform=`rotate(${-S.compass.heading}deg)`;
-    $("headingDeg").textContent=Math.round(S.compass.heading)+"°";
-    $("headingCard").textContent=card16(S.compass.heading); }
-  if(S.tilt.on){ $("pitchVal").textContent=S.tilt.pitch.toFixed(1)+"°";
-    $("rollVal").textContent=S.tilt.roll.toFixed(1)+"°";
+    document.querySelectorAll(".rose-dial").forEach(g=>g.style.transform=`rotate(${-S.compass.heading}deg)`);
+    put("headingDeg",Math.round(S.compass.heading)+"°");
+    put("headingCard",card16(S.compass.heading)); }
+  if(S.tilt.on){ put("pitchVal",S.tilt.pitch.toFixed(1)+"°");
+    put("rollVal",S.tilt.roll.toFixed(1)+"°");
     const x=clamp(S.tilt.roll,-30,30)/30*34, y=-clamp(S.tilt.pitch,-30,30)/30*34;
-    const d=$("bubbleDot"); d.style.left=`calc(50% + ${x.toFixed(1)}px)`; d.style.top=`calc(50% + ${y.toFixed(1)}px)`; } }
+    document.querySelectorAll(".bubble-dot").forEach(d=>{ d.style.left=`calc(50% + ${x.toFixed(1)}px)`; d.style.top=`calc(50% + ${y.toFixed(1)}px)`; });
+    // artificial horizon: pitch slides the sky/ground vertically, roll rotates it (1.4 units per degree)
+    const hz=`translateY(${(clamp(S.tilt.pitch,-30,30)*1.4).toFixed(2)}px) rotate(${(-S.tilt.roll).toFixed(2)}deg)`;
+    document.querySelectorAll(".hzn-move").forEach(n=>n.style.transform=hz); } }
 
 /* ---------- main tick (500 ms) ---------- */
 let tickN=0;
@@ -427,6 +581,35 @@ setInterval(()=>{ const now=Date.now(); if(S.trip.active) tickTrip(now);
   renderSpeed(); renderTrip();
   if(++tickN%2===0){ renderLocation(); renderOdo(); }
   if(S.trip.active&&tickN%60===0) store.set("odoAcc",S.odoAcc); },500);
+
+/* ---------- pager: 5 swipeable views ---------- */
+const pagesEl=$("pages"), NP=5; let page=clamp(store.get("page",0),0,NP-1);
+const dots=[...document.querySelectorAll(".dot")];
+function setPage(i,anim=true){ page=clamp(i,0,NP-1); store.set("page",page);
+  pagesEl.style.transition=anim?"":"none";
+  pagesEl.style.transform=`translateX(${-page*100}%)`;
+  dots.forEach((d,j)=>d.classList.toggle("on",j===page)); }
+dots.forEach(d=>d.onclick=()=>setPage(+d.dataset.i));
+if(store.get("swiped",0)) $("swipeHint").classList.add("hidden");
+let sw=null; // {id,x0,y0,mode,dx} — pointer swipe on the page strip
+pagesEl.addEventListener("pointerdown",e=>{ if(e.target.closest("button,select,input,a")) return;
+  sw={id:e.pointerId,x0:e.clientX,y0:e.clientY,mode:null,dx:0}; });
+pagesEl.addEventListener("pointermove",e=>{ if(!sw||e.pointerId!==sw.id) return;
+  const dx=e.clientX-sw.x0, dy=e.clientY-sw.y0; sw.dx=dx;
+  if(sw.mode===null){ if(Math.abs(dx)>12&&Math.abs(dx)>=Math.abs(dy)) sw.mode="h";
+    else if(Math.abs(dy)>12){ sw=null; return; } // vertical → let the page scroll
+    else return; }
+  e.preventDefault();
+  let off=dx; if((page===0&&dx>0)||(page===NP-1&&dx<0)) off=dx*0.3; // rubber-band at edges
+  pagesEl.style.transition="none";
+  pagesEl.style.transform=`translateX(calc(${-page*100}% + ${off.toFixed(1)}px))`; });
+function endSwipe(e){ if(!sw||e.pointerId!==sw.id) return; const s=sw; sw=null;
+  if(s.mode!=="h") return;
+  pagesEl.style.transition=""; // restore CSS transition for the settle animation
+  if(s.dx<-56&&page<NP-1) setPage(page+1); else if(s.dx>56&&page>0) setPage(page-1); else setPage(page);
+  if(!store.get("swiped",0)){ store.set("swiped",1); $("swipeHint").classList.add("hidden"); } }
+pagesEl.addEventListener("pointerup",endSwipe);
+pagesEl.addEventListener("pointercancel",e=>{ if(sw&&e.pointerId===sw.id){ sw=null; pagesEl.style.transition=""; setPage(page); } });
 
 /* ---------- wake lock (iOS 16.4+) ---------- */
 let wakeLock=null, wantWake=false;
@@ -438,22 +621,39 @@ function setWake(on){ wantWake=on; $("wakeBtn").classList.toggle("on",on);
   if(on) acquireWake(); else { if(wakeLock) wakeLock.release(); wakeLock=null; } }
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") acquireWake(); });
 
+/* ---------- speed limit warning ---------- */
+const TO_MPS={mph:MI/3600,kph:1/3.6,ms:1}; // unit → m/s (limit stored in m/s)
+function limitLabel(){ if(S.limitMps==null) return "Set limit";
+  const u=S.unit, v=S.limitMps/TO_MPS[u]; return "Limit "+v.toFixed(u==="ms"?2:1)+" "+UNITS[u].label; }
+function updateLimitBtns(){ const show=TO_MPS[S.unit]!=null; // hidden for %c / Mach
+  document.querySelectorAll(".limit-btn").forEach(b=>{ b.style.display=show?"":"none"; if(show){ b.textContent=limitLabel(); b.classList.toggle("set",S.limitMps!=null); } }); }
+function openLimit(){ const u=S.unit;
+  $("limitModalHint").textContent="The speed turns red when you go over it. (in "+UNITS[u].label+")";
+  $("limitInput").value=S.limitMps==null?"":(S.limitMps/TO_MPS[u]).toFixed(u==="ms"?2:1);
+  $("limitModal").classList.remove("hidden"); setTimeout(()=>$("limitInput").focus(),60); }
+function saveLimit(){ const v=parseFloat($("limitInput").value);
+  if(isFinite(v)&&v>0){ S.limitMps=v*TO_MPS[S.unit]; store.set("limit",S.limitMps); }
+  $("limitModal").classList.add("hidden"); updateLimitBtns(); renderSpeed(); }
+$("limitCancel").onclick=()=>$("limitModal").classList.add("hidden");
+$("limitClear").onclick=()=>{ S.limitMps=null; store.set("limit",null); $("limitModal").classList.add("hidden"); updateLimitBtns(); renderSpeed(); };
+$("limitSave").onclick=saveLimit;
+document.querySelectorAll(".limit-btn").forEach(b=>b.onclick=openLimit);
+
 /* ---------- controls ---------- */
-$("fontMinus").onclick=()=>{ S.fontScale=clamp(+(S.fontScale-0.1).toFixed(2),0.6,2); store.set("font",S.fontScale); applyFont(); };
-$("fontPlus").onclick=()=>{ S.fontScale=clamp(+(S.fontScale+0.1).toFixed(2),0.6,2); store.set("font",S.fontScale); applyFont(); };
+document.querySelectorAll(".font-btn").forEach(b=>b.onclick=()=>{ S.fontScale=clamp(+(S.fontScale+ +b.dataset.font*0.1).toFixed(2),0.6,2); store.set("font",S.fontScale); applyFont(); });
 $("unitSel").onchange=e=>{ S.unit=e.target.value; store.set("unit",S.unit); applyUnit(); };
 $("themeBtn").onclick=()=>{ S.theme=S.theme==="dark"?"light":"dark"; store.set("theme",S.theme); applyTheme();
   const m=document.querySelector('meta[name="theme-color"]'); if(m) m.content=S.theme==="dark"?"#0b0f14":"#eef1f5"; };
-$("coordFmtBtn").onclick=()=>{ S.coordFmt=S.coordFmt==="dd"?"dms":"dd"; store.set("coord",S.coordFmt); applyCoordFmt(); };
-$("copyBtn").onclick=async()=>{ const t=$("latVal").textContent+", "+$("lonVal").textContent; if(t.startsWith("—")) return;
+document.querySelectorAll(".coord-fmt-btn").forEach(b=>b.onclick=()=>{ S.coordFmt=S.coordFmt==="dd"?"dms":"dd"; store.set("coord",S.coordFmt); applyCoordFmt(); });
+document.querySelectorAll(".copy-btn").forEach(b=>b.onclick=async()=>{ const t=document.querySelector('[data-bind="latVal"]').textContent+", "+document.querySelector('[data-bind="lonVal"]').textContent; if(t.startsWith("—")) return;
   try{ await navigator.clipboard.writeText(t); }catch(e){ const ta=document.createElement("textarea"); ta.value=t; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy")}catch(_){} ta.remove(); }
-  const b=$("copyBtn"); b.textContent="Copied ✓"; setTimeout(()=>b.textContent="Copy",1200); };
-$("gpsModeBtn").onclick=()=>setGpsMode(S.sampling==="accurate"?"basic":"accurate");
+  b.textContent="Copied ✓"; setTimeout(()=>b.textContent="Copy",1200); });
+document.querySelectorAll(".gps-mode-btn").forEach(b=>b.onclick=()=>setGpsMode(S.sampling==="accurate"?"basic":"accurate"));
 $("tripBtn").onclick=()=>{ S.trip.active?stopTrip():startTrip(); };
 $("wakeBtn").onclick=()=>setWake(!wantWake);
 $("resetBtn").onclick=resetTrip;
 $("sensorBtn").onclick=async()=>{ if(await enableSensors()) $("sensorBtn").classList.add("hidden"); };
-$("calibBtn").onclick=()=>$("calibOverlay").classList.remove("hidden");
+document.querySelectorAll(".calib-btn").forEach(b=>b.onclick=()=>$("calibOverlay").classList.remove("hidden"));
 $("calibDone").onclick=()=>{ $("calibOverlay").classList.add("hidden"); S.compass.samples.length=0; };
 function openOdo(){ const conv=S.unit==="mph"?MI:1e3;
   $("odoInput").value=(Math.max(0,(S.odoBase+S.odoAcc))/conv).toFixed(2);
@@ -474,8 +674,9 @@ $("startBtn").onclick=async()=>{ $("onboard").classList.add("hidden"); store.set
   const ok=await enableSensors(); if(!ok) $("sensorBtn").classList.remove("hidden");
   startGps(); };
 
-buildRose(); applyTheme(); applyFont(); applyUnit(); applyCoordFmt();
-$("gpsModeBtn").textContent=S.sampling==="accurate"?"Accurate":"Basic";
+buildRose(); applyTheme(); applyFont(); applyUnit(); applyCoordFmt(); updateLimitBtns();
+document.querySelectorAll(".gps-mode-btn").forEach(b=>b.textContent=S.sampling==="accurate"?"Accurate":"Basic");
+setPage(page,false); // restore last view without animation
 document.querySelectorAll("#sampleChoice button").forEach(b=>b.classList.toggle("sel",b.dataset.mode===S.sampling));
 if(store.get("started",0)) $("startBtn").textContent="Resume";
 </script>
