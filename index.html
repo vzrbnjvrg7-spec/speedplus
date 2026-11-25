@@ -1,4 +1,4 @@
-<!-- Speed+ v1.0 — single-file GPS speed app for iPhone (vanilla HTML/JS, no frameworks) -->
+<!-- Speed+ v1.2 — single-file GPS speed app for iPhone (vanilla HTML/JS, no frameworks) · v1.2: variometer + fall watch (page 6), tilt tare -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -109,12 +109,33 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
 .pages[data-dir="back"] .page.active{animation-name:pgInBack;}
 @keyframes pgIn{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
 @keyframes pgInBack{from{opacity:0;transform:translateX(-26px)}to{opacity:1;transform:none}}
-.page-speed,.page-speedtrip,.page-gps,.page-tilt{justify-content:safe center;align-items:center;}
+.page-speed,.page-speedtrip,.page-gps,.page-tilt,.page-vario{justify-content:safe center;align-items:center;}
 .page-speed{--sp-base:clamp(64px,24vw,130px);}
 .page-speedtrip{--sp-base:clamp(56px,20vw,110px);}
 .page-speedtrip .card.trip{width:100%;max-width:420px;}
 .page-gps .card{width:100%;max-width:420px;}
 .page-tilt .card{width:100%;max-width:400px;}
+/* ---------- variometer + fall watch (page 6) ---------- */
+.page-vario .card{width:100%;max-width:420px;}
+.page-label{align-self:center;color:var(--dim);font-size:12px;text-align:center;margin:0;line-height:1.4;}
+.fine{margin:2px 0 0;color:var(--dim);font-size:11.5px;line-height:1.4;}
+.btnrow{display:flex;gap:8px;margin-top:2px;}
+.btnrow .btn{flex:1;}
+a.btn{text-decoration:none;text-align:center;display:block;padding:8px 11px;}
+.vario-readout{display:flex;align-items:baseline;justify-content:center;gap:8px;font-variant-numeric:tabular-nums;font-weight:700;font-size:clamp(46px,15vw,68px);line-height:1.05;}
+.vario-readout .vario-unit{font-size:.3em;color:var(--dim);font-weight:600;}
+.vario-readout.v-up{color:var(--ok);}
+.vario-readout.v-down{color:var(--bad);}
+.vario-sub{text-align:center;color:var(--dim);font-size:14px;font-variant-numeric:tabular-nums;margin-top:-2px;}
+.vario-readout.alarm{animation:alarmPulse .5s ease-in-out infinite;}
+@keyframes alarmPulse{0%,100%{opacity:1}50%{opacity:.3}}
+.fall-card .tag.bad{animation:alarmPulse .6s ease-in-out infinite;}
+#fallAlert{position:fixed;inset:0;z-index:90;background:rgba(26,4,8,.94);display:flex;align-items:center;justify-content:center;padding:20px;}
+#fallAlert.hidden{display:none;}
+.fall-panel{background:var(--card);border:2px solid var(--bad);border-radius:20px;padding:26px 22px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:12px;text-align:center;}
+.fall-panel h1{margin:0;font-size:25px;color:var(--bad);letter-spacing:-.3px;}
+.fall-panel p{margin:0;color:var(--txt);font-size:14.5px;line-height:1.5;font-variant-numeric:tabular-nums;}
+.fall-panel .fine{text-align:center;}
 .dots{display:flex;justify-content:center;gap:2px;padding:0;}
 .dot{width:34px;height:34px;border-radius:50%;padding:12px;position:relative;}
 .dot::after{content:"";display:block;width:10px;height:10px;border-radius:50%;background:var(--line);transition:transform .2s,background .2s;}
@@ -220,6 +241,25 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
   </div>
 </div>
 
+<div id="varioAlarmModal" class="overlay hidden">
+  <div class="panel">
+    <h1 style="font-size:20px">Vario alarm</h1>
+    <p id="varioAlarmHint">Fast, loud beeps and a flashing readout when vertical speed exceeds this (m/s).</p>
+    <input id="varioAlarmInput" class="odo-input" type="number" inputmode="decimal" step="any" min="0.1">
+    <div class="btnrow"><button class="btn" id="varioAlarmCancel">Cancel</button><button class="btn primary" id="varioAlarmSave">Save</button></div>
+  </div>
+</div>
+
+<div id="fallAlert" class="hidden">
+  <div class="fall-panel">
+    <h1 id="fallAlertTitle">⚠️ FALL DETECTED</h1>
+    <p id="fallAlertSummary">—</p>
+    <p id="fallAlertPos" style="color:var(--dim);font-size:13px">—</p>
+    <div class="btnrow"><a id="fallAlertMaps" class="btn primary" href="#">Open in Apple Maps</a><button class="btn danger" id="fallAlertDismiss">Dismiss</button></div>
+    <p class="fine">Estimates depend on phone orientation during the fall. This is an aid for your belayer, not a safety device — keep iOS Fall Detection on in Settings.</p>
+  </div>
+</div>
+
 <main class="app">
   <div id="pages" class="pages">
 
@@ -284,7 +324,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
       </div>
 
       <div class="card">
-        <h2>Pitch / Roll</h2>
+        <h2>Pitch / Roll <span class="tag" data-bind="tiltState">—</span></h2>
         <div class="tilt-wrap">
           <div class="bubble"><div class="bubble-dot"></div></div>
           <div class="tilt-read">
@@ -365,7 +405,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
     <!-- page 5 · pitch / roll -->
     <section class="page page-tilt">
       <div class="card">
-        <h2>Pitch / Roll</h2>
+        <h2>Pitch / Roll <span class="tag" data-bind="tiltState">—</span></h2>
         <svg class="hzn" viewBox="0 0 100 100" aria-hidden="true">
           <defs><clipPath id="hznClip"><circle cx="50" cy="50" r="46"/></clipPath></defs>
           <g clip-path="url(#hznClip)">
@@ -389,6 +429,34 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
             <div><span style="color:var(--dim)">Roll</span> <span class="v" data-bind="rollVal">0.0°</span></div>
           </div>
         </div>
+        <div class="btnrow">
+          <button class="btn" id="tareBtn">Tare — set level here</button>
+          <button class="btn hidden" id="tareClearBtn">Clear tare</button>
+        </div>
+        <p class="fine" id="tareNote" style="display:none"></p>
+      </div>
+    </section>
+
+    <!-- page 6 · variometer + fall watch -->
+    <section class="page page-vario">
+      <p class="page-label">Sensors: GPS and accelerometer only — barometer not available.</p>
+      <div class="card vario-card">
+        <h2>Variometer <span class="tag" data-bind="varioState">Off</span></h2>
+        <div class="vario-readout"><span data-bind="varioVal">0.00</span><span class="vario-unit">m/s</span></div>
+        <div class="vario-sub" data-bind="varioFpm">0 ft/min</div>
+        <div class="row"><span class="k">Peak (30 s)</span><span class="v" data-bind="varioPeak">—</span></div>
+        <div class="row"><span class="k">Net climb</span><span class="v" data-bind="varioNet">0.0 m</span></div>
+        <div class="btnrow">
+          <button class="btn primary" id="varioToggleBtn">Beeps: Off</button>
+          <button class="btn" id="varioAlarmBtn">Alarm: 2.0 m/s</button>
+        </div>
+        <p class="fine">From GPS altitude (±10 m, ~1 Hz) — coarse. The iPhone barometer isn't available to web pages.</p>
+      </div>
+
+      <div class="card fall-card">
+        <h2>Fall watch <span class="tag" data-bind="fallState">Idle</span></h2>
+        <div class="row"><span class="k">Last event</span><span class="v" data-bind="fallLast">—</span></div>
+        <p class="fine">Detects free fall (weightlessness) via the accelerometer, estimates distance and impact speed, logs your last GPS position. Slow slides are below GPS noise — not detected. This is an aid for your belayer, not a safety device: keep iOS Fall Detection on in Settings.</p>
       </div>
     </section>
 
@@ -401,6 +469,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
     <button class="dot" data-i="2" aria-label="Speed and trip"></button>
     <button class="dot" data-i="3" aria-label="GPS and compass"></button>
     <button class="dot" data-i="4" aria-label="Pitch and roll"></button>
+    <button class="dot" data-i="5" aria-label="Variometer"></button>
   </nav>
 
   <footer class="controls">
@@ -452,7 +521,9 @@ const S={
   trip:{active:false,startTs:0,lastTs:0,distM:0,moveMs:0,idleMs:0,maxMps:0,moving:false,pendTarget:null,pendTs:0},
   gps:{lat:null,lon:null,acc:null,alt:null,altAcc:null,speed:0,heading:null,ts:0},
   compass:{on:false,heading:null,samples:[],state:"off",lastPrompt:0},
-  tilt:{on:false,pitch:0,roll:0},
+  tilt:{on:false,pitch:0,roll:0,offP:store.get("tareP",0),offR:store.get("tareR",0)}, // off* = tare baseline (raw degrees)
+   vario:{on:store.get("varioOn",false),thr:store.get("varioThr",2.0),vs:0,lastAlt:null,lastT:0,peakBuf:[],netM:0,alarm:false},
+   fall:{state:"idle",t0:0,vEst:0,dEst:0,lowT:0,highT:0,noImpact:false,lastEvent:null},
 };
 
 /* ---------- theme / unit / font prefs ---------- */
@@ -466,7 +537,7 @@ const gpsOpts=()=>S.sampling==="accurate"?{enableHighAccuracy:true,maximumAge:0,
 function startGps(){ if(watchId!=null||!navigator.geolocation) return; watchId=navigator.geolocation.watchPosition(onGps,onGpsErr,gpsOpts()); }
 function stopGps(){ if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null;} }
 function setGpsMode(m){ S.sampling=m; store.set("sampling",m); document.querySelectorAll(".gps-mode-btn").forEach(b=>b.textContent=m==="accurate"?"Accurate":"Basic"); stopGps(); startGps(); }
-function onGps(p){ const c=p.coords; S.gps={lat:c.latitude,lon:c.longitude,acc:c.accuracy,alt:c.altitude,altAcc:c.altitudeAccuracy,speed:c.speed==null?0:Math.max(0,c.speed),heading:c.heading,ts:Date.now()}; hideBanner(); tickTrip(Date.now()); }
+function onGps(p){ const c=p.coords; S.gps={lat:c.latitude,lon:c.longitude,acc:c.accuracy,alt:c.altitude,altAcc:c.altitudeAccuracy,speed:c.speed==null?0:Math.max(0,c.speed),heading:c.heading,ts:Date.now()}; hideBanner(); tickTrip(Date.now()); tickVario(); }
 function onGpsErr(e){ showBanner(e.code===1?"Location permission denied — allow it in Settings → Safari → Location.":"Waiting for a GPS fix…"); }
 function showBanner(msg){ document.querySelectorAll(".gps-banner-msg").forEach(n=>n.textContent=msg); document.querySelectorAll(".gps-banner").forEach(b=>b.classList.add("show")); }
 function hideBanner(){ document.querySelectorAll(".gps-banner").forEach(b=>b.classList.remove("show")); }
@@ -517,8 +588,12 @@ function compassStability(){ const c=S.compass, now=performance.now(); c.samples
   document.querySelectorAll(".compass-tag").forEach(tag=>{ tag.textContent=c.state; tag.className="tag compass-tag "+(c.state==="stable"?"ok":c.state==="unstable"?"bad":"warn"); }); }
 async function enableSensors(){ const DOE=window.DeviceOrientationEvent;
   if(DOE&&typeof DOE.requestPermission==="function"){ try{ if(await DOE.requestPermission()!=="granted") return false; }catch(e){ return false; } }
+  const DME=window.DeviceMotionEvent; // fall watch needs motion too (same user gesture)
+  if(DME&&typeof DME.requestPermission==="function"){ try{ await DME.requestPermission(); }catch(e){} }
   window.addEventListener("deviceorientationabsolute",onOrient,true);
   window.addEventListener("deviceorientation",onOrient,true); // fallback (relative alpha; tilt still valid)
+  window.addEventListener("devicemotion",onMotion,true);
+  ensureAudio(); // user gesture: arm WebAudio for vario beeps + fall alarm
   S.compass.on=true; $("sensorBtn").classList.add("hidden"); return true; }
 /* ---------- odometer digit strips ---------- */
 let odoLen=-1;
@@ -572,23 +647,129 @@ function renderSensors(){ if(S.compass.on&&S.compass.heading!=null){
     document.querySelectorAll(".rose-dial").forEach(g=>g.style.transform=`rotate(${-S.compass.heading}deg)`);
     put("headingDeg",Math.round(S.compass.heading)+"°");
     put("headingCard",card16(S.compass.heading)); }
-  if(S.tilt.on){ put("pitchVal",S.tilt.pitch.toFixed(1)+"°");
-    put("rollVal",S.tilt.roll.toFixed(1)+"°");
-    const x=clamp(S.tilt.roll,-30,30)/30*34, y=-clamp(S.tilt.pitch,-30,30)/30*34;
+  if(S.tilt.on){ const p=S.tilt.pitch-S.tilt.offP, r=S.tilt.roll-S.tilt.offR; // tared
+    put("pitchVal",p.toFixed(1)+"°");
+    put("rollVal",r.toFixed(1)+"°");
+    const x=clamp(r,-30,30)/30*34, y=-clamp(p,-30,30)/30*34;
     document.querySelectorAll(".bubble-dot").forEach(d=>{ d.style.left=`calc(50% + ${x.toFixed(1)}px)`; d.style.top=`calc(50% + ${y.toFixed(1)}px)`; });
     // artificial horizon: pitch slides the sky/ground vertically, roll rotates it (1.4 units per degree)
-    const hz=`translateY(${(clamp(S.tilt.pitch,-30,30)*1.4).toFixed(2)}px) rotate(${(-S.tilt.roll).toFixed(2)}deg)`;
-    document.querySelectorAll(".hzn-move").forEach(n=>n.style.transform=hz); } }
+    const hz=`translateY(${(clamp(p,-30,30)*1.4).toFixed(2)}px) rotate(${(-r).toFixed(2)}deg)`;
+    document.querySelectorAll(".hzn-move").forEach(n=>n.style.transform=hz);
+    const lvl=Math.abs(p)<1&&Math.abs(r)<1; put("tiltState",lvl?"Level":"Tilted");
+    document.querySelectorAll('[data-bind="tiltState"]').forEach(n=>{ n.classList.toggle("ok",lvl); n.classList.toggle("warn",!lvl); }); } }
+
+/* ---------- variometer (GPS altitude deltas, EMA-smoothed) ---------- */
+function tickVario(){ const g=S.gps, v=S.vario; if(g.alt==null) return;
+  const now=Date.now();
+  if(v.lastAlt==null||!v.lastT){ v.lastAlt=g.alt; v.lastT=now; return; }
+  const dt=(now-v.lastT)/1000;
+  if(dt<=0||dt>15){ v.lastAlt=g.alt; v.lastT=now; return; } // gap: reset baseline
+  const raw=(g.alt-v.lastAlt)/dt; v.lastAlt=g.alt; v.lastT=now;
+  if(Math.abs(raw)>20) return; // GPS altitude jump, not a climb
+  const k=1-Math.exp(-dt/4); v.vs+=(raw-v.vs)*k; // EMA, tau≈4 s
+  if(Math.abs(v.vs)<0.02&&Math.abs(raw)<0.05) v.vs=0;
+  v.netM+=v.vs*dt; // net climb since session start
+  v.peakBuf.push([now,v.vs]); while(v.peakBuf.length&&now-v.peakBuf[0][0]>3e4) v.peakBuf.shift();
+  if(!v.alarm&&Math.abs(v.vs)>v.thr) v.alarm=true;      // alarm hysteresis
+  else if(v.alarm&&Math.abs(v.vs)<v.thr-0.25) v.alarm=false; }
+function renderVario(){ const v=S.vario;
+  put("varioVal",(v.vs>0?"+":"")+v.vs.toFixed(2));
+  put("varioFpm",Math.round(v.vs*196.85)+" ft/min");
+  let pk=null; for(const s of v.peakBuf){ if(pk==null||Math.abs(s[1])>Math.abs(pk)) pk=s[1]; }
+  put("varioPeak",pk==null?"—":(pk>0?"+":"")+pk.toFixed(2)+" m/s");
+  put("varioNet",(v.netM>=0?"+":"")+v.netM.toFixed(1)+" m");
+  put("varioState",v.on?"On":"Off");
+  const ro=document.querySelector(".vario-readout");
+  if(ro){ ro.classList.toggle("v-up",v.vs>0.15); ro.classList.toggle("v-down",v.vs<-0.15); ro.classList.toggle("alarm",v.on&&v.alarm); }
+  document.querySelectorAll('[data-bind="varioState"]').forEach(n=>n.classList.toggle("ok",v.on)); }
+
+/* ---------- WebAudio beep engine (no files; ctx armed in a user gesture) ---------- */
+let audioCtx=null;
+function ensureAudio(){ if(!audioCtx){ try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+  if(audioCtx&&audioCtx.state==="suspended") audioCtx.resume(); }
+function beep(freq,gain,dur){ if(!audioCtx||audioCtx.state!=="running") return;
+  const t=audioCtx.currentTime, o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.type="sine"; o.frequency.value=freq;
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(gain,t+0.005);
+  g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  o.connect(g).connect(audioCtx.destination); o.start(t); o.stop(t+dur+0.02); }
+let nextBeep=0;
+setInterval(()=>{ const v=S.vario, now=performance.now();
+  if(!v.on||!audioCtx){ nextBeep=now; return; }
+  if(v.alarm){ while(now>=nextBeep){ beep(880,0.2,0.12); nextBeep+=150; } return; } // fast + loud
+  const vs=v.vs; if(Math.abs(vs)<0.15){ nextBeep=Math.max(nextBeep,now); return; } // deadband
+  const rate=vs>0?Math.min(5.5,0.8+vs*1.6):Math.min(4,0.5+(-vs)*1.2);
+  const gain=0.05+Math.min(Math.abs(vs),3)*0.018; // subtle, grows with magnitude
+  while(now>=nextBeep){ beep(vs>0?740:300,gain,vs>0?0.12:0.09); nextBeep+=1000/rate; } },100);
+$("varioToggleBtn").onclick=()=>{ S.vario.on=!S.vario.on; store.set("varioOn",S.vario.on);
+  if(S.vario.on) ensureAudio(); // iOS: AudioContext must start inside a user gesture
+  $("varioToggleBtn").textContent="Beeps: "+(S.vario.on?"On":"Off");
+  $("varioToggleBtn").classList.toggle("primary",S.vario.on); renderVario(); };
+$("varioAlarmBtn").onclick=()=>{ $("varioAlarmInput").value=S.vario.thr;
+  $("varioAlarmModal").classList.remove("hidden"); setTimeout(()=>$("varioAlarmInput").focus(),60); };
+$("varioAlarmCancel").onclick=()=>$("varioAlarmModal").classList.add("hidden");
+$("varioAlarmSave").onclick=()=>{ const x=parseFloat($("varioAlarmInput").value);
+  if(isFinite(x)&&x>=0.1){ S.vario.thr=x; store.set("varioThr",x); $("varioAlarmBtn").textContent="Alarm: "+x.toFixed(1)+" m/s"; }
+  $("varioAlarmModal").classList.add("hidden"); };
+
+/* ---------- fall watch: free-fall (weightlessness) via accelerometer ---------- */
+let fallLog=store.get("fallLog",[]), lastMotionTs=0, lastFallBeep=0;
+function onMotion(e){ const a=e.accelerationIncludingGravity||e.acceleration; if(!a) return;
+  const m=Math.sqrt((a.x||0)**2+(a.y||0)**2+(a.z||0)**2); // |g| ≈ 9.81 at rest, → 0 in free fall
+  const f=S.fall, now=e.timeStamp; // ms since page load (monotonic)
+  if(f.state==="idle"){
+    if(m<3.5){ f.lowT=f.lowT||now;
+      if(now-f.lowT>=600){ f.state="falling"; f.t0=now; f.vEst=0; f.dEst=0; f.noImpact=false; lastMotionTs=now;
+        fallTag("FALLING","bad"); } }
+    else f.lowT=0;
+  } else if(f.state==="falling"){
+    const dt=Math.min(0.2,(now-lastMotionTs)/1000)||0.016; lastMotionTs=now;
+    f.vEst+=Math.max(0,9.81-m)*dt; f.dEst+=f.vEst*dt; // orientation-dependent estimate
+    if(now-lastFallBeep>200){ lastFallBeep=now; beep(800,0.25,0.1); } // loud alarm for the belayer
+    if(m>6){ f.highT=f.highT||now;
+      if(now-f.highT>=300){ // impact: gravity returns
+        f.state="idle"; f.lowT=0; f.highT=0;
+        const g=S.gps, ev={t:Date.now(),dur:(now-f.t0)/1000,v:f.vEst,d:f.dEst,lat:g.lat,lon:g.lon};
+        f.lastEvent=ev; fallLog.unshift(ev); if(fallLog.length>10) fallLog.pop(); store.set("fallLog",fallLog);
+        fallTag("Impact","warn"); renderFallLast(); showFallAlert(ev,false); } }
+    else f.highT=0;
+    if(!f.noImpact&&now-f.t0>12e3){ f.noImpact=true; showFallAlert(null,true); } // still falling after 12 s
+  }}
+function fallTag(txt,cls){ put("fallState",txt);
+  document.querySelectorAll('[data-bind="fallState"]').forEach(n=>{ n.classList.remove("ok","warn","bad"); if(cls) n.classList.add(cls); }); }
+function renderFallLast(){ const ev=S.fall.lastEvent;
+  put("fallLast",ev?new Date(ev.t).toLocaleTimeString()+" · "+Math.max(0,ev.d).toFixed(1)+" m @ "+ev.v.toFixed(1)+" m/s":"—"); }
+function showFallAlert(ev,noImpact){ $("fallAlertTitle").textContent=noImpact?"⚠️ FALL — NO IMPACT YET":"⚠️ FALL DETECTED";
+  $("fallAlertSummary").textContent=ev?`Duration ${ev.dur.toFixed(1)} s · est. fall ${Math.max(0,ev.d).toFixed(1)} m · impact ≈ ${ev.v.toFixed(1)} m/s (${Math.round(ev.v*3.6)} km/h)`
+    :"Free fall in progress — no impact detected yet.";
+  const g=S.gps;
+  if(g.lat!=null){ $("fallAlertPos").textContent=`Last position: ${g.lat.toFixed(5)}, ${g.lon.toFixed(5)}`;
+    $("fallAlertMaps").href=`https://maps.apple.com/?ll=${g.lat},${g.lon}`; }
+  else { $("fallAlertPos").textContent="No GPS position available."; $("fallAlertMaps").href="#"; }
+  $("fallAlert").classList.remove("hidden"); beep(880,0.3,0.4); }
+$("fallAlertDismiss").onclick=()=>$("fallAlert").classList.add("hidden");
+
+/* ---------- tilt tare: zero the baseline to the current mount angle ---------- */
+function tareUI(){ const t=S.tilt, on=t.offP!==0||t.offR!==0;
+  $("tareClearBtn").classList.toggle("hidden",!on);
+  const n=$("tareNote");
+  if(on){ n.style.display=""; n.textContent=`Tare active: level = raw pitch ${t.offP.toFixed(1)}°, roll ${t.offR.toFixed(1)}°. Values shown are relative to this.`; }
+  else n.style.display="none"; }
+$("tareBtn").onclick=()=>{ const t=S.tilt; if(!t.on) return;
+  t.offP=t.pitch; t.offR=t.roll; store.set("tareP",t.offP); store.set("tareR",t.offR);
+  tareUI(); scheduleSensorRender(); };
+$("tareClearBtn").onclick=()=>{ S.tilt.offP=0; S.tilt.offR=0; store.set("tareP",0); store.set("tareR",0);
+  tareUI(); scheduleSensorRender(); };
 
 /* ---------- main tick (500 ms) ---------- */
 let tickN=0;
 setInterval(()=>{ const now=Date.now(); if(S.trip.active) tickTrip(now);
-  renderSpeed(); renderTrip();
+  renderSpeed(); renderTrip(); renderVario();
   if(++tickN%2===0){ renderLocation(); renderOdo(); }
   if(S.trip.active&&tickN%60===0) store.set("odoAcc",S.odoAcc); },500);
 
-/* ---------- pager: 5 views — display-toggle, no transform strip ---------- */
-const pagesEl=$("pages"), NP=5; let page=clamp(store.get("page",0),0,NP-1);
+/* ---------- pager: 6 views — display-toggle, no transform strip ---------- */
+const pagesEl=$("pages"), NP=6; let page=clamp(store.get("page",0),0,NP-1);
 const pages=[...pagesEl.querySelectorAll(".page")];
 const dots=[...document.querySelectorAll(".dot")];
 function setPage(i){ const next=clamp(i,0,NP-1);
@@ -677,6 +858,11 @@ document.querySelectorAll(".gps-mode-btn").forEach(b=>b.textContent=S.sampling==
 setPage(page); // restore last view
 document.querySelectorAll("#sampleChoice button").forEach(b=>b.classList.toggle("sel",b.dataset.mode===S.sampling));
 if(store.get("started",0)) $("startBtn").textContent="Resume";
+$("varioToggleBtn").textContent="Beeps: "+(S.vario.on?"On":"Off");
+$("varioToggleBtn").classList.toggle("primary",S.vario.on);
+$("varioAlarmBtn").textContent="Alarm: "+S.vario.thr.toFixed(1)+" m/s";
+fallTag("Idle","ok"); renderFallLast(); tareUI(); renderVario();
+document.addEventListener("pointerdown",()=>{ if(S.vario.on) ensureAudio(); }); // arm audio on first touch (iOS gesture rule)
 </script>
 </body>
 </html>
