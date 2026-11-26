@@ -1,4 +1,4 @@
-<!-- Speed+ v1.5 -->
+<!-- Speed+ v1.6 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -52,7 +52,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
 .limit-btn{align-self:center;font-size:11px;color:var(--dim);}
 .limit-btn.set{color:var(--acc);border-color:var(--acc);}
 /* ---------- card grid ---------- */
-.grid{display:grid;gap:10px;grid-template-columns:1fr 1fr;}
+.grid{display:grid;gap:10px;grid-template-columns:1fr;} /* v1.6: single column — odometer merged into trip card */
 .card{
   background:var(--card);border:1px solid var(--line);border-radius:14px;
   padding:10px 12px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px;min-width:0;
@@ -79,6 +79,8 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
 .odo-strip span{height:1.05em;line-height:1.05;text-align:center;}
 .odo-label{font-size:11px;color:var(--dim);}
 .odo-edit{align-self:flex-end;font-size:11px;color:var(--cy);font-weight:600;padding:2px 8px;border-radius:99px;background:var(--card2);border:1px solid var(--line);}
+.odo-row{align-items:center;} /* v1.6: odometer as last row of trip card */
+.odo-inline{align-items:flex-start;} /* v1.6: left-aligned inside trip card */
 /* location */
 .coords{display:flex;flex-direction:column;gap:2px;}
 .coord-line{display:flex;align-items:center;justify-content:space-between;gap:6px;}
@@ -113,6 +115,9 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
 .page-speed{--sp-base:clamp(64px,24vw,130px);}
 .page-speedtrip{--sp-base:clamp(56px,20vw,110px);}
 .page-overview{--sp-base:clamp(64px,20vw,100px);} /* v1.5: page 1 readout a bit larger (was fixed 64px) */
+.page-overview .row{font-size:15px;} /* v1.6: bigger card text now that page 1 has room */
+.page-overview .card h2{font-size:12px;}
+.page-overview .big{font-size:22px;}
 .page-speedtrip .card.trip{width:100%;max-width:420px;}
 .page-gps .card{width:100%;max-width:420px;}
 .page-tilt .card{width:100%;max-width:400px;}
@@ -193,8 +198,7 @@ a.btn{text-decoration:none;text-align:center;display:block;padding:8px 11px;}
 @media (orientation:landscape){
   .page-overview{flex-direction:row;align-items:center;}
   .speed-col{display:flex;flex-direction:column;justify-content:center;gap:8px;width:min(40%,300px);flex:none;}
-  .grid{grid-template-columns:repeat(3,1fr);align-content:center;flex:1;}
-  .card.trip{grid-column:auto;grid-row:span 2;}
+  .grid{grid-template-columns:1fr 1fr;align-content:center;flex:1;} /* v1.6: two cards (trip+location) */
   .page-gps{flex-direction:row;align-items:center;gap:12px;}
   .page-gps .card{max-width:none;flex:1;}
 }
@@ -294,12 +298,9 @@ a.btn{text-decoration:none;text-align:center;display:block;padding:8px 11px;}
         <div class="row"><span class="k">Avg (total)</span><span class="v" data-bind="tripAvgAll">—</span></div>
         <div class="row"><span class="k">Avg (moving)</span><span class="v" data-bind="tripAvgMove">—</span></div>
         <div class="row"><span class="k">Max speed</span><span class="v" data-bind="tripMax">—</span></div>
+        <div class="row odo-row"><span class="k">Odometer</span><button class="odo-edit" id="odoEditBtn">Set</button></div>
+        <div class="odo odo-inline"><div class="odo-digits" id="odoDigits"></div><span class="odo-label" id="odoLabel">km</span></div>
       </div>
-
-    <div class="card">
-      <h2>Odometer <button class="odo-edit" id="odoEditBtn">Set</button></h2>
-      <div class="odo"><div class="odo-digits" id="odoDigits"></div><span class="odo-label" id="odoLabel">km</span></div>
-    </div>
 
       <div class="card">
         <h2>Location <span class="hdr-btns"><button class="mini-btn coord-fmt-btn">DMS</button><button class="mini-btn copy-btn">Copy</button></span></h2>
@@ -887,8 +888,9 @@ $("themeBtn").onclick=()=>{ S.theme=S.theme==="dark"?"light":"dark"; store.set("
   const m=document.querySelector('meta[name="theme-color"]'); if(m) m.content=S.theme==="dark"?"#0b0f14":"#eef1f5"; };
 document.querySelectorAll(".coord-fmt-btn").forEach(b=>b.onclick=()=>{ S.coordFmt=S.coordFmt==="dd"?"dms":"dd"; store.set("coord",S.coordFmt); applyCoordFmt(); });
 async function copyText(t,btn,label){ if(!t||t.startsWith("—")) return;
-  try{ await navigator.clipboard.writeText(t); }catch(e){ const ta=document.createElement("textarea"); ta.value=t; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy")}catch(_){} ta.remove(); }
-  btn.textContent="Copied ✓"; setTimeout(()=>btn.textContent=label,1200); }
+  let ok=false;
+  try{ await navigator.clipboard.writeText(t); ok=true; }catch(e){ const ta=document.createElement("textarea"); ta.value=t; document.body.appendChild(ta); ta.select(); try{ok=document.execCommand("copy")}catch(_){} ta.remove(); }
+  btn.textContent=ok?"Copied ✓":"Failed ✗"; setTimeout(()=>btn.textContent=label,1200); }
 document.querySelectorAll(".copy-btn").forEach(b=>b.onclick=()=>{ const t=document.querySelector('[data-bind="latVal"]').textContent+", "+document.querySelector('[data-bind="lonVal"]').textContent; copyText(t,b,"Copy"); });
 document.querySelectorAll(".copy-all-btn").forEach(b=>b.onclick=()=>{ const g=S.gps; if(g.lat==null) return;
   const FT=3.28084, dd=v=>v.toFixed(5);
@@ -896,7 +898,7 @@ document.querySelectorAll(".copy-all-btn").forEach(b=>b.onclick=()=>{ const g=S.
     g.alt!=null?`Altitude: ${Math.round(g.alt*FT)} ft (±${g.altAcc?Math.round(g.altAcc*FT):"?"} ft)`:"Altitude: —",
     `Accuracy: ±${Math.round(g.acc*FT)} ft`, g.heading!=null?`Heading: ${Math.round(g.heading)}° (${card16(g.heading)})`:"Heading: —",
     new Date().toLocaleString()].join("\n"); copyText(t,b,"Copy all"); });
-document.querySelectorAll(".copy-trip-btn").forEach(b=>b.onclick=()=>{ const t=S.trip; if(!t.active&&t.distM<=0) return;
+document.querySelectorAll(".copy-trip-btn").forEach(b=>b.onclick=()=>{ const t=S.trip; if(!t.active&&t.distM<=0){ b.textContent="No trip yet"; setTimeout(()=>b.textContent="Copy",1200); return; }
   const lab=" "+UNITS[S.unit].label, total=t.active?Date.now()-t.startTs:t.moveMs+t.idleMs;
   const avgAll=t.distM>1&&total>0?fmtSpeed(t.distM/(total/1e3),S.unit)+lab:"—",
         avgMove=t.distM>1&&t.moveMs>0?fmtSpeed(t.distM/(t.moveMs/1e3),S.unit)+lab:"—";
