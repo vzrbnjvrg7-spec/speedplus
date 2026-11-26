@@ -1,4 +1,4 @@
-<!-- Speed+ v1.3 -->
+<!-- Speed+ v1.4  -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -459,7 +459,7 @@ a.btn{text-decoration:none;text-align:center;display:block;padding:8px 11px;}
           <button class="btn" id="varioTestBtn">Test beep</button>
         </div>
         <div class="vol-row"><span class="vol-lbl">Volume</span><input type="range" id="varioVol" min="0" max="100" value="60" aria-label="Beep volume"><button class="btn danger" id="varioMuteBtn">M U T E</button></div>
-        <p class="fine">Measures climb/sink rate from GPS altitude (±5–20 m, ~1 Hz) — it tracks your elevation change, not body motion. The alarm sounds even when Beeps are off; MUTE silences everything for this session only.</p>
+        <p class="fine">Measures climb/sink rate from GPS altitude (±5–20 m, ~1 Hz) — it tracks your elevation change, not body motion. Beeps only sound while this page is showing; the alarm sounds on any page. MUTE (on by default) silences vario audio for this session — the fall alarm always sounds, even muted.</p>
       </div>
 
       <div class="card fall-card">
@@ -519,7 +519,7 @@ function put(k,v){ const el=$(k); if(el) el.textContent=v; document.querySelecto
 
 /* ---------- state ---------- */
 const S={
-  muted:false, // session-only (never persisted — safety)
+  muted:true, // session-only (never persisted — safety). Default MUTE: no Music interruption until user unmutes
   unit:store.get("unit","mph"),
   theme:store.get("theme",matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"),
   fontScale:store.get("font",1),
@@ -530,7 +530,7 @@ const S={
   limitMps:store.get("limit",null), // m/s, speed-limit warning (unit-independent)
   trip:{active:false,startTs:0,lastTs:0,distM:0,moveMs:0,idleMs:0,maxMps:0,moving:false,pendTarget:null,pendTs:0},
   gps:{lat:null,lon:null,acc:null,alt:null,altAcc:null,speed:0,heading:null,ts:0},
-  compass:{on:false,heading:null,samples:[],state:"off",lastPrompt:0,unstSince:0,ignoreUntil:0,gpsH:[]},
+  compass:{on:false,heading:null,samples:[],state:"off",lastPrompt:0,unstSince:0,ignoreUntil:0,gpsH:[],absSeen:false},
   tilt:{on:false,pitch:0,roll:0,offP:store.get("tareP",0),offR:store.get("tareR",0)}, // off* = tare baseline (raw degrees)
    vario:{on:store.get("varioOn",false),thr:store.get("varioThr",2.0),sink:store.get("varioSink",false),vol:store.get("varioVol",60),vs:0,lastAlt:null,lastT:0,peakBuf:[],netM:0,alarm:false},
    fall:{state:"idle",t0:0,vEst:0,dEst:0,lowT:0,highT:0,noImpact:false,lastEvent:null},
@@ -576,6 +576,11 @@ function buildRose(){ let s=""; for(let d=0;d<360;d+=15){ const maj=d%45===0, r1
   [["N",0],["E",90],["S",180],["W",270]].forEach(([t,d])=>{ const a=(d-90)*Math.PI/180; s+=`<text x="${(50+29*Math.cos(a)).toFixed(1)}" y="${(53+29*Math.sin(a)).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--${t==="N"?"bad":"txt"})">${t}</text>`; });
   document.querySelectorAll(".rose-dial").forEach(g=>g.innerHTML=s); }
 function onOrient(e){ if(!S.compass.on) return; const a=e.alpha; if(a==null) return;
+  // iOS fires BOTH deviceorientationabsolute (magnetic-north reference) and deviceorientation
+  // (alpha zeroed at page load). Blending the two corrupts heading by a session-dependent
+  // offset — once an absolute sample arrives, ignore relative ones.
+  const abs=e.type==="deviceorientationabsolute"||e.absolute===true;
+  if(!abs&&S.compass.absSeen) return; if(abs) S.compass.absSeen=true;
   // heading = direction the top of the screen points (works for portrait & landscape mounts)
   const raw=((360-a+screenAngle())%360+360)%360, c=S.compass, now=performance.now();
   // circular low-pass on unit vectors (τ≈1.2 s): kills magnetometer jitter — thin phones (Air) drift fast
@@ -711,11 +716,14 @@ function renderVario(){ const v=S.vario;
 
 /* ---------- WebAudio beep engine (no files; ctx armed in a user gesture) ---------- */
 let audioCtx=null;
-function ensureAudio(){ try{ if(navigator.audioSession) navigator.audioSession.type="playback"; }catch(e){} // iOS routes WebAudio to the "ambient" channel, which the silent switch mutes — playback keeps beeps/alarms audible even when silenced
+function ensureAudio(){ if(!S.muted){ try{ if(navigator.audioSession) navigator.audioSession.type="playback"; }catch(e){} } // iOS routes WebAudio to the "ambient" channel, which the silent switch mutes — playback keeps beeps/alarms audible even when silenced. Only while UNMUTED, so a muted session never interrupts Music.
+  if(!audioCtx){ try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+  if(audioCtx&&audioCtx.state==="suspended") audioCtx.resume(); }
+function forceAudio(){ try{ if(navigator.audioSession) navigator.audioSession.type="playback"; }catch(e){} // fall alarm must be audible even in silent mode, regardless of MUTE
   if(!audioCtx){ try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
   if(audioCtx&&audioCtx.state==="suspended") audioCtx.resume(); }
 function buzz(ms){ try{ if(navigator.vibrate) navigator.vibrate(Math.min(150,ms)); }catch(e){} } // Android only — WebKit has never shipped a haptics API
-function beep(freq,gain,dur){ if(S.muted) return; buzz(dur*1000);
+function beep(freq,gain,dur,force){ if(S.muted&&!force) return; buzz(dur*1000);
   if(!audioCtx||audioCtx.state!=="running") return; gain*=S.vario.vol/100;
   const t=audioCtx.currentTime, o=audioCtx.createOscillator(), g=audioCtx.createGain();
   o.type="sine"; o.frequency.value=freq;
@@ -725,8 +733,8 @@ function beep(freq,gain,dur){ if(S.muted) return; buzz(dur*1000);
 let nextBeep=0;
 setInterval(()=>{ const v=S.vario, now=performance.now();
   if(!audioCtx){ nextBeep=now; return; }
-  if(v.alarm){ while(now>=nextBeep){ beep(880,0.25,0.12); nextBeep+=150; } return; } // alarm: fast + loud, sounds even with Beeps off
-  if(!v.on){ nextBeep=now; return; }
+  if(v.alarm){ while(now>=nextBeep){ beep(880,0.25,0.12); nextBeep+=150; } return; } // alarm: fast + loud, sounds on any page (safety), silenced only by MUTE
+  if(!v.on||page!==5){ nextBeep=now; return; } // normal beeps: only while the vario page (6) is showing
   const vs=v.vs; if(Math.abs(vs)<0.15){ nextBeep=Math.max(nextBeep,now); return; } // deadband
   const rate=vs>0?Math.min(5.5,0.8+vs*1.6):Math.min(4,0.5+(-vs)*1.2);
   const gain=0.08+Math.min(Math.abs(vs),3)*0.02; // subtle, grows with magnitude
@@ -745,7 +753,8 @@ $("varioSinkBtn").onclick=()=>{ S.vario.sink=!S.vario.sink; store.set("varioSink
   $("varioSinkBtn").textContent=S.vario.sink?"Alarm: sink only":"Alarm: both";
   $("varioSinkBtn").classList.toggle("primary",S.vario.sink); };
 $("varioTestBtn").onclick=()=>{ ensureAudio(); beep(880,0.25,0.15); setTimeout(()=>beep(740,0.2,0.15),260); }; // verify audio is armed
-$("varioMuteBtn").onclick=()=>{ S.muted=!S.muted; $("varioMuteBtn").textContent=S.muted?"M U T E D":"M U T E"; $("varioMuteBtn").classList.toggle("on",S.muted); }; // session-only
+$("varioMuteBtn").onclick=()=>{ S.muted=!S.muted; if(!S.muted) ensureAudio(); // unmute is a user gesture: arm playback channel now
+  $("varioMuteBtn").textContent=S.muted?"M U T E D":"M U T E"; $("varioMuteBtn").classList.toggle("on",S.muted); }; // session-only
 $("varioVol").oninput=e=>{ S.vario.vol=+e.target.value; store.set("varioVol",S.vario.vol); };
 
 /* ---------- fall watch: free-fall (weightlessness) via accelerometer ---------- */
@@ -756,12 +765,13 @@ function onMotion(e){ const a=e.accelerationIncludingGravity||e.acceleration; if
   if(f.state==="idle"){
     if(m<3.5){ f.lowT=f.lowT||now;
       if(now-f.lowT>=600){ f.state="falling"; f.t0=now; f.vEst=0; f.dEst=0; f.noImpact=false; lastMotionTs=now;
+        forceAudio(); // fall alarm must sound even if MUTE is on / silent switch — arm playback channel now
         fallTag("FALLING","bad"); } }
     else f.lowT=0;
   } else if(f.state==="falling"){
     const dt=Math.min(0.2,(now-lastMotionTs)/1000)||0.016; lastMotionTs=now;
     f.vEst+=Math.max(0,9.81-m)*dt; f.dEst+=f.vEst*dt; // orientation-dependent estimate
-    if(now-lastFallBeep>200){ lastFallBeep=now; beep(800,0.25,0.1); } // loud alarm for the belayer
+    if(now-lastFallBeep>200){ lastFallBeep=now; beep(800,0.25,0.1,true); } // loud alarm for the belayer — force: bypasses MUTE
     if(m>6){ f.highT=f.highT||now;
       if(now-f.highT>=300){ // impact: gravity returns
         f.state="idle"; f.lowT=0; f.highT=0;
@@ -782,7 +792,7 @@ function showFallAlert(ev,noImpact){ $("fallAlertTitle").textContent=noImpact?"�
   if(g.lat!=null){ $("fallAlertPos").textContent=`Last position: ${g.lat.toFixed(5)}, ${g.lon.toFixed(5)}`;
     $("fallAlertMaps").href=`https://maps.apple.com/?ll=${g.lat},${g.lon}`; }
   else { $("fallAlertPos").textContent="No GPS position available."; $("fallAlertMaps").href="#"; }
-  $("fallAlert").classList.remove("hidden"); beep(880,0.3,0.4); }
+  $("fallAlert").classList.remove("hidden"); forceAudio(); beep(880,0.3,0.4,true); } // impact/no-impact alarm — force: bypasses MUTE
 $("fallAlertDismiss").onclick=()=>$("fallAlert").classList.add("hidden");
 
 /* ---------- tilt tare: zero the baseline to the current mount angle ---------- */
@@ -915,6 +925,8 @@ $("varioAlarmBtn").textContent="Alarm: "+S.vario.thr.toFixed(1)+" m/s";
 $("varioSinkBtn").textContent=S.vario.sink?"Alarm: sink only":"Alarm: both";
 $("varioSinkBtn").classList.toggle("primary",S.vario.sink);
 $("varioVol").value=S.vario.vol;
+$("varioMuteBtn").textContent=S.muted?"M U T E D":"M U T E"; // default muted
+$("varioMuteBtn").classList.toggle("on",S.muted);
 fallTag("Idle","ok"); renderFallLast(); tareUI(); renderVario();
 document.addEventListener("pointerdown",()=>ensureAudio()); // arm audio on first touch (iOS gesture rule) — alarm must be able to sound
 </script>
