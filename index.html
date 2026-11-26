@@ -1,4 +1,4 @@
-<!-- Speed+ v1.4  -->
+<!-- Speed+ v1.5 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -68,10 +68,10 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
 /* trip */
 .trip-times{display:flex;flex-direction:column;gap:3px;}
 /* odometer */
-.odo{display:flex;flex-direction:column;align-items:center;gap:4px;padding:2px 0;}
-.odo-digits{display:flex;background:var(--odo-bg);border-radius:8px;padding:3px;gap:2px;border:1px solid var(--line);}
+.odo{display:flex;flex-direction:column;align-items:center;gap:3px;padding:0;}
+.odo-digits{display:flex;background:var(--odo-bg);border-radius:7px;padding:2px;gap:2px;border:1px solid var(--line);}
 .odo-digit{
-  width:.72em;height:1.05em;overflow:hidden;font-size:24px;font-weight:700;
+  width:.72em;height:1.05em;overflow:hidden;font-size:18px;font-weight:700;
   font-variant-numeric:tabular-nums;color:var(--odo-txt);position:relative;
 }
 .odo-digit.frac{color:var(--odo-frac);width:auto;padding:0 5px;}
@@ -87,13 +87,13 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
 .hdr-btns{display:flex;gap:6px;}
 .mini-btn:active{opacity:.7;}
 .maps-link{font-size:12px;color:var(--cy);text-decoration:none;font-weight:600;}
-/* compass */
-.compass-wrap{display:flex;align-items:center;gap:10px;}
+/* compass — v1.5: commented out (drift), restore with the HTML/JS below when it returns */
+/* .compass-wrap{display:flex;align-items:center;gap:10px;}
 .rose{width:86px;height:86px;flex:none;}
 .rose-dial{transform-origin:50% 50%;}
 .compass-read{display:flex;flex-direction:column;gap:2px;}
 .hdg-deg{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;}
-.hdg-card{font-size:15px;font-weight:700;color:var(--cy);}
+.hdg-card{font-size:15px;font-weight:700;color:var(--cy);} */
 /* tilt */
 .tilt-wrap{display:flex;align-items:center;gap:10px;}
 .bubble{width:86px;height:86px;flex:none;border-radius:50%;background:var(--card2);border:1px solid var(--line);position:relative;overflow:hidden;}
@@ -112,6 +112,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;}
 .page-speed,.page-speedtrip,.page-gps,.page-tilt,.page-vario{justify-content:safe center;align-items:center;}
 .page-speed{--sp-base:clamp(64px,24vw,130px);}
 .page-speedtrip{--sp-base:clamp(56px,20vw,110px);}
+.page-overview{--sp-base:clamp(64px,20vw,100px);} /* v1.5: page 1 readout a bit larger (was fixed 64px) */
 .page-speedtrip .card.trip{width:100%;max-width:420px;}
 .page-gps .card{width:100%;max-width:420px;}
 .page-tilt .card{width:100%;max-width:400px;}
@@ -209,7 +210,7 @@ a.btn{text-decoration:none;text-align:center;display:block;padding:8px 11px;}
 <div id="onboard" class="overlay">
   <div class="panel">
     <h1>Speed<span class="plus">+</span></h1>
-    <p>GPS speed, trip meters, odometer, compass &amp; tilt. Pick a GPS mode first.</p>
+    <p>GPS speed, trip meters, odometer &amp; tilt. Pick a GPS mode first.</p>
     <div class="choice" id="sampleChoice">
       <button data-mode="basic"><span>Basic</span><small>Power saving · lower accuracy, ~1 Hz updates</small></button>
       <button data-mode="accurate" class="sel"><span>Most Accurate</span><small>High power use · best speed &amp; fix details</small></button>
@@ -218,6 +219,7 @@ a.btn{text-decoration:none;text-align:center;display:block;padding:8px 11px;}
   </div>
 </div>
 
+<!-- v1.5: compass calibration overlay commented out (compass removed, may return)
 <div id="calibOverlay" class="overlay hidden">
   <div class="panel">
     <h1 style="font-size:20px">Calibrate compass</h1>
@@ -227,6 +229,7 @@ a.btn{text-decoration:none;text-align:center;display:block;padding:8px 11px;}
     <button class="cta ignore" id="calibIgnore">I G N O R E</button>
   </div>
 </div>
+-->
 
 <div id="odoModal" class="overlay hidden">
   <div class="panel">
@@ -312,6 +315,7 @@ a.btn{text-decoration:none;text-align:center;display:block;padding:8px 11px;}
         <div class="row"><span class="k">GPS mode</span><button class="mini-btn gps-mode-btn">Accurate</button></div>
       </div>
 
+      <!-- v1.5: compass card commented out (drift, may return — target true north)
       <div class="card">
         <h2>Compass <span class="tag compass-tag">off</span></h2>
         <div class="compass-wrap">
@@ -327,7 +331,9 @@ a.btn{text-decoration:none;text-align:center;display:block;padding:8px 11px;}
         </div>
         <button class="mini-btn calib-btn">Calibrate</button>
       </div>
+      -->
 
+      <!-- v1.5: pitch/roll removed from page 1 (full view still on page 5)
       <div class="card">
         <h2>Pitch / Roll <span class="tag" data-bind="tiltState">—</span></h2>
         <div class="tilt-wrap">
@@ -338,6 +344,7 @@ a.btn{text-decoration:none;text-align:center;display:block;padding:8px 11px;}
           </div>
         </div>
       </div>
+      -->
     </section>
   </section>
 
@@ -375,7 +382,7 @@ a.btn{text-decoration:none;text-align:center;display:block;padding:8px 11px;}
       </div>
     </section>
 
-    <!-- page 4 · GPS details + compass -->
+    <!-- page 4 · GPS details (compass card commented out in v1.5) -->
     <section class="page page-gps">
       <div class="card">
         <h2>Location <span class="hdr-btns"><button class="mini-btn coord-fmt-btn">DMS</button><button class="mini-btn copy-btn">Copy</button><button class="mini-btn copy-all-btn">Copy all</button></span></h2>
@@ -390,6 +397,7 @@ a.btn{text-decoration:none;text-align:center;display:block;padding:8px 11px;}
         <div class="row"><span class="k">Fix quality</span><span class="v" data-bind="gpsQual">—</span></div>
         <div class="row"><span class="k">GPS mode</span><button class="mini-btn gps-mode-btn">Accurate</button></div>
       </div>
+      <!-- v1.5: compass card commented out (drift, may return — target true north)
       <div class="card">
         <h2>Compass <span class="tag compass-tag">off</span></h2>
         <div class="compass-wrap">
@@ -405,6 +413,7 @@ a.btn{text-decoration:none;text-align:center;display:block;padding:8px 11px;}
         </div>
         <button class="mini-btn calib-btn">Calibrate</button>
       </div>
+      -->
     </section>
 
     <!-- page 5 · pitch / roll -->
@@ -476,7 +485,7 @@ a.btn{text-decoration:none;text-align:center;display:block;padding:8px 11px;}
     <button class="dot on" data-i="0" aria-label="Overview"></button>
     <button class="dot" data-i="1" aria-label="Speed"></button>
     <button class="dot" data-i="2" aria-label="Speed and trip"></button>
-    <button class="dot" data-i="3" aria-label="GPS and compass"></button>
+    <button class="dot" data-i="3" aria-label="GPS details"></button>
     <button class="dot" data-i="4" aria-label="Pitch and roll"></button>
     <button class="dot" data-i="5" aria-label="Variometer"></button>
   </nav>
@@ -493,7 +502,7 @@ a.btn{text-decoration:none;text-align:center;display:block;padding:8px 11px;}
     </select>
     <button id="themeBtn" class="icon-btn" aria-label="Toggle theme">☀️</button>
     <button id="wakeBtn" class="icon-btn" aria-label="Keep screen on">⚡</button>
-    <button id="sensorBtn" class="icon-btn hidden" aria-label="Enable compass">🧭</button>
+    <button id="sensorBtn" class="icon-btn hidden" aria-label="Enable sensors (tilt &amp; fall watch)">📡</button>
   </footer>
 </main>
 
@@ -530,7 +539,8 @@ const S={
   limitMps:store.get("limit",null), // m/s, speed-limit warning (unit-independent)
   trip:{active:false,startTs:0,lastTs:0,distM:0,moveMs:0,idleMs:0,maxMps:0,moving:false,pendTarget:null,pendTs:0},
   gps:{lat:null,lon:null,acc:null,alt:null,altAcc:null,speed:0,heading:null,ts:0},
-  compass:{on:false,heading:null,samples:[],state:"off",lastPrompt:0,unstSince:0,ignoreUntil:0,gpsH:[],absSeen:false},
+  // compass:{on:false,heading:null,samples:[],state:"off",lastPrompt:0,unstSince:0,ignoreUntil:0,gpsH:[],absSeen:false}, // v1.5: compass off (drift) — restore when it returns
+  compass:{on:false}, // v1.5 stub: keeps S.compass defined so nothing crashes while compass code is commented out
   tilt:{on:false,pitch:0,roll:0,offP:store.get("tareP",0),offR:store.get("tareR",0)}, // off* = tare baseline (raw degrees)
    vario:{on:store.get("varioOn",false),thr:store.get("varioThr",2.0),sink:store.get("varioSink",false),vol:store.get("varioVol",60),vs:0,lastAlt:null,lastT:0,peakBuf:[],netM:0,alarm:false},
    fall:{state:"idle",t0:0,vEst:0,dEst:0,lowT:0,highT:0,noImpact:false,lastEvent:null},
@@ -571,59 +581,64 @@ function resetTrip(){ Object.assign(S.trip,{active:false,startTs:0,lastTs:0,dist
 /* ---------- sensors: compass + tilt ---------- */
 const CARD16=["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
 const card16=h=>CARD16[Math.round(h/22.5)%16];
-function buildRose(){ let s=""; for(let d=0;d<360;d+=15){ const maj=d%45===0, r1=maj?37:42, a=(d-90)*Math.PI/180;
-  s+=`<line x1="${(50+r1*Math.cos(a)).toFixed(1)}" y1="${(50+r1*Math.sin(a)).toFixed(1)}" x2="${(50+46*Math.cos(a)).toFixed(1)}" y2="${(50+46*Math.sin(a)).toFixed(1)}" stroke="var(--${maj?"txt":"dim"})" stroke-width="${maj?2:1}"/>`; }
-  [["N",0],["E",90],["S",180],["W",270]].forEach(([t,d])=>{ const a=(d-90)*Math.PI/180; s+=`<text x="${(50+29*Math.cos(a)).toFixed(1)}" y="${(53+29*Math.sin(a)).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--${t==="N"?"bad":"txt"})">${t}</text>`; });
-  document.querySelectorAll(".rose-dial").forEach(g=>g.innerHTML=s); }
-function onOrient(e){ if(!S.compass.on) return; const a=e.alpha; if(a==null) return;
+// v1.5: compass rose builder commented out (compass removed, may return)
+// function buildRose(){ let s=""; for(let d=0;d<360;d+=15){ const maj=d%45===0, r1=maj?37:42, a=(d-90)*Math.PI/180;
+//   s+=`<line x1="${(50+r1*Math.cos(a)).toFixed(1)}" y1="${(50+r1*Math.sin(a)).toFixed(1)}" x2="${(50+46*Math.cos(a)).toFixed(1)}" y2="${(50+46*Math.sin(a)).toFixed(1)}" stroke="var(--${maj?"txt":"dim"})" stroke-width="${maj?2:1}"/>`; }
+//   [["N",0],["E",90],["S",180],["W",270]].forEach(([t,d])=>{ const a=(d-90)*Math.PI/180; s+=`<text x="${(50+29*Math.cos(a)).toFixed(1)}" y="${(53+29*Math.sin(a)).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--${t==="N"?"bad":"txt"})">${t}</text>`; });
+//   document.querySelectorAll(".rose-dial").forEach(g=>g.innerHTML=s); }
+function onOrient(e){ // v1.5: compass (alpha) handling commented out — tilt (beta/gamma) stays live
+  // if(!S.compass.on) return; const a=e.alpha; if(a==null) return;
   // iOS fires BOTH deviceorientationabsolute (magnetic-north reference) and deviceorientation
   // (alpha zeroed at page load). Blending the two corrupts heading by a session-dependent
   // offset — once an absolute sample arrives, ignore relative ones.
-  const abs=e.type==="deviceorientationabsolute"||e.absolute===true;
-  if(!abs&&S.compass.absSeen) return; if(abs) S.compass.absSeen=true;
+  // const abs=e.type==="deviceorientationabsolute"||e.absolute===true;
+  // if(!abs&&S.compass.absSeen) return; if(abs) S.compass.absSeen=true;
   // heading = direction the top of the screen points (works for portrait & landscape mounts)
-  const raw=((360-a+screenAngle())%360+360)%360, c=S.compass, now=performance.now();
+  // const raw=((360-a+screenAngle())%360+360)%360, c=S.compass, now=performance.now();
   // circular low-pass on unit vectors (τ≈1.2 s): kills magnetometer jitter — thin phones (Air) drift fast
-  if(c.hx==null){ c.hx=Math.cos(raw*Math.PI/180); c.hy=Math.sin(raw*Math.PI/180); c.lastO=now; }
-  else { const dt=Math.min(2,(now-c.lastO)/1e3); c.lastO=now; const k=1-Math.exp(-dt/1.2),
-    cx=Math.cos(raw*Math.PI/180), sy=Math.sin(raw*Math.PI/180);
-    c.hx+=k*(cx-c.hx); c.hy+=k*(sy-c.hy); const m=Math.hypot(c.hx,c.hy)||1; c.hx/=m; c.hy/=m; }
-  S.compass.heading=(Math.atan2(c.hy,c.hx)*180/Math.PI+360)%360;
+  // if(c.hx==null){ c.hx=Math.cos(raw*Math.PI/180); c.hy=Math.sin(raw*Math.PI/180); c.lastO=now; }
+  // else { const dt=Math.min(2,(now-c.lastO)/1e3); c.lastO=now; const k=1-Math.exp(-dt/1.2),
+  //   cx=Math.cos(raw*Math.PI/180), sy=Math.sin(raw*Math.PI/180);
+  //   c.hx+=k*(cx-c.hx); c.hy+=k*(sy-c.hy); const m=Math.hypot(c.hx,c.hy)||1; c.hx/=m; c.hy/=m; }
+  // S.compass.heading=(Math.atan2(c.hy,c.hx)*180/Math.PI+360)%360;
   const b=e.beta,g=e.gamma; if(b!=null&&g!=null){ S.tilt.on=true;
     const ang=screenAngle(); let p,r; // remap so pitch=road grade, roll=banking (phone flat on dash)
     if(ang===0){p=b;r=g;} else if(ang===90){p=-g;r=b;} else if(ang===180){p=-b;r=-g;} else {p=g;r=-b;}
     S.tilt.pitch=p; S.tilt.roll=r; }
-  compassStability(); scheduleSensorRender(); }
-function circDiff(a,b){ let d=Math.abs(a-b)%360; return d>180?360-d:d; }
-function compassStability(){ const c=S.compass, now=performance.now(); c.samples.push([now,c.heading]);
-  while(c.samples.length&&now-c.samples[0]>4e3) c.samples.shift();
-  if(c.samples.length<8){ c.state="warming"; return; }
-  const g=S.gps, fresh=g.ts&&Date.now()-g.ts<5e3;
-  if(fresh&&(g.speed||0)>3&&g.heading!=null){ // moving: compare vs GPS course
-    const off=circDiff(c.heading,g.heading);
-    // turning gate: while the GPS course itself is changing fast (a turn), a compass-vs-course
-    // offset is expected — hold the previous state instead of flagging "unstable" mid-turn
-    const tnow=Date.now(); c.gpsH.push([tnow,g.heading]); while(c.gpsH.length&&tnow-c.gpsH[0][0]>4e3) c.gpsH.shift();
-    let turn=0; for(let i=1;i<c.gpsH.length;i++) turn+=circDiff(c.gpsH[i][1],c.gpsH[i-1][1]);
-    if(turn<=25) c.state=off>45?"unstable":off>20?"drifting":"stable";
-  } else { // stationary: jitter over the 4s window (deg/s of total travel)
-    let trav=0; for(let i=1;i<c.samples.length;i++) trav+=circDiff(c.samples[i][1],c.samples[i-1][1]);
-    const rate=trav/4; c.state=rate>25?"unstable":rate>8?"drifting":"stable"; }
-  // prompt only after SUSTAINED instability (~8 s) — a transient turn spike no longer triggers it
-  if(c.state==="unstable"){ c.unstSince=c.unstSince||Date.now(); } else c.unstSince=0;
-  if(c.state==="unstable"&&Date.now()-c.unstSince>8e3
-     &&Date.now()>c.ignoreUntil&&Date.now()-c.lastPrompt>6e4){
-    c.lastPrompt=Date.now(); $("calibOverlay").classList.remove("hidden"); }
-  document.querySelectorAll(".compass-tag").forEach(tag=>{ tag.textContent=c.state; tag.className="tag compass-tag "+(c.state==="stable"?"ok":c.state==="unstable"?"bad":"warn"); }); }
+  // compassStability();
+  scheduleSensorRender(); }
+// v1.5: compass stability monitor + calibrate prompt commented out (compass removed, may return)
+// function circDiff(a,b){ let d=Math.abs(a-b)%360; return d>180?360-d:d; }
+// function compassStability(){ const c=S.compass, now=performance.now(); c.samples.push([now,c.heading]);
+//   while(c.samples.length&&now-c.samples[0]>4e3) c.samples.shift();
+//   if(c.samples.length<8){ c.state="warming"; return; }
+//   const g=S.gps, fresh=g.ts&&Date.now()-g.ts<5e3;
+//   if(fresh&&(g.speed||0)>3&&g.heading!=null){ // moving: compare vs GPS course
+//     const off=circDiff(c.heading,g.heading);
+//     // turning gate: while the GPS course itself is changing fast (a turn), a compass-vs-course
+//     // offset is expected — hold the previous state instead of flagging "unstable" mid-turn
+//     const tnow=Date.now(); c.gpsH.push([tnow,g.heading]); while(c.gpsH.length&&tnow-c.gpsH[0][0]>4e3) c.gpsH.shift();
+//     let turn=0; for(let i=1;i<c.gpsH.length;i++) turn+=circDiff(c.gpsH[i][1],c.gpsH[i-1][1]);
+//     if(turn<=25) c.state=off>45?"unstable":off>20?"drifting":"stable";
+//   } else { // stationary: jitter over the 4s window (deg/s of total travel)
+//     let trav=0; for(let i=1;i<c.samples.length;i++) trav+=circDiff(c.samples[i][1],c.samples[i-1][1]);
+//     const rate=trav/4; c.state=rate>25?"unstable":rate>8?"drifting":"stable"; }
+//   // prompt only after SUSTAINED instability (~8 s) — a transient turn spike no longer triggers it
+//   if(c.state==="unstable"){ c.unstSince=c.unstSince||Date.now(); } else c.unstSince=0;
+//   if(c.state==="unstable"&&Date.now()-c.unstSince>8e3
+//      &&Date.now()>c.ignoreUntil&&Date.now()-c.lastPrompt>6e4){
+//     c.lastPrompt=Date.now(); $("calibOverlay").classList.remove("hidden"); }
+//   document.querySelectorAll(".compass-tag").forEach(tag=>{ tag.textContent=c.state; tag.className="tag compass-tag "+(c.state==="stable"?"ok":c.state==="unstable"?"bad":"warn"); }); }
 async function enableSensors(){ const DOE=window.DeviceOrientationEvent;
   if(DOE&&typeof DOE.requestPermission==="function"){ try{ if(await DOE.requestPermission()!=="granted") return false; }catch(e){ return false; } }
   const DME=window.DeviceMotionEvent; // fall watch needs motion too (same user gesture)
   if(DME&&typeof DME.requestPermission==="function"){ try{ await DME.requestPermission(); }catch(e){} }
-  window.addEventListener("deviceorientationabsolute",onOrient,true);
-  window.addEventListener("deviceorientation",onOrient,true); // fallback (relative alpha; tilt still valid)
+  // window.addEventListener("deviceorientationabsolute",onOrient,true); // v1.5: compass-only listener commented out
+  window.addEventListener("deviceorientation",onOrient,true); // tilt (beta/gamma) — alpha part of handler is commented out
   window.addEventListener("devicemotion",onMotion,true);
   ensureAudio(); // user gesture: arm WebAudio for vario beeps + fall alarm
-  S.compass.on=true; $("sensorBtn").classList.add("hidden"); return true; }
+  // S.compass.on=true; // v1.5: compass off
+  $("sensorBtn").classList.add("hidden"); return true; }
 /* ---------- odometer digit strips ---------- */
 let odoLen=-1;
 const odoValue=()=>(S.odoBase+S.odoAcc)/(S.unit==="mph"?MI:1e3);
@@ -672,10 +687,11 @@ function renderTrip(){ const t=S.trip, now=Date.now();
   put("tripMax",t.maxMps>0.5?fmtSpeed(t.maxMps,S.unit)+lab:"—"); }
 let sensorRaf=0;
 function scheduleSensorRender(){ if(!sensorRaf) sensorRaf=requestAnimationFrame(()=>{sensorRaf=0;renderSensors();}); }
-function renderSensors(){ if(S.compass.on&&S.compass.heading!=null){
-    document.querySelectorAll(".rose-dial").forEach(g=>g.style.transform=`rotate(${-S.compass.heading}deg)`);
-    put("headingDeg",Math.round(S.compass.heading)+"°");
-    put("headingCard",card16(S.compass.heading)); }
+function renderSensors(){ // v1.5: compass rendering commented out — tilt stays live
+  // if(S.compass.on&&S.compass.heading!=null){
+  //   document.querySelectorAll(".rose-dial").forEach(g=>g.style.transform=`rotate(${-S.compass.heading}deg)`);
+  //   put("headingDeg",Math.round(S.compass.heading)+"°");
+  //   put("headingCard",card16(S.compass.heading)); }
   if(S.tilt.on){ const p=S.tilt.pitch-S.tilt.offP, r=S.tilt.roll-S.tilt.offR; // tared
     put("pitchVal",p.toFixed(1)+"°");
     put("rollVal",r.toFixed(1)+"°");
@@ -892,9 +908,10 @@ $("tripBtn").onclick=()=>{ S.trip.active?stopTrip():startTrip(); };
 $("wakeBtn").onclick=()=>setWake(!wantWake);
 $("resetBtn").onclick=resetTrip;
 $("sensorBtn").onclick=async()=>{ if(await enableSensors()) $("sensorBtn").classList.add("hidden"); };
-document.querySelectorAll(".calib-btn").forEach(b=>b.onclick=()=>$("calibOverlay").classList.remove("hidden"));
-$("calibDone").onclick=()=>{ $("calibOverlay").classList.add("hidden"); S.compass.samples.length=0; S.compass.hx=null; }; // snap to fresh raw heading after calibrating
-$("calibIgnore").onclick=()=>{ $("calibOverlay").classList.add("hidden"); S.compass.ignoreUntil=Date.now()+6e5; S.compass.unstSince=0; }; // suppress prompt 10 min
+// v1.5: compass calibration handlers commented out (compass removed, may return)
+// document.querySelectorAll(".calib-btn").forEach(b=>b.onclick=()=>$("calibOverlay").classList.remove("hidden"));
+// $("calibDone").onclick=()=>{ $("calibOverlay").classList.add("hidden"); S.compass.samples.length=0; S.compass.hx=null; }; // snap to fresh raw heading after calibrating
+// $("calibIgnore").onclick=()=>{ $("calibOverlay").classList.add("hidden"); S.compass.ignoreUntil=Date.now()+6e5; S.compass.unstSince=0; }; // suppress prompt 10 min
 function openOdo(){ const conv=S.unit==="mph"?MI:1e3;
   $("odoInput").value=(Math.max(0,(S.odoBase+S.odoAcc))/conv).toFixed(2);
   $("odoModalHint").textContent="Enter your vehicle's current odometer reading ("+(S.unit==="mph"?"miles":"km")+").";
@@ -914,7 +931,8 @@ $("startBtn").onclick=async()=>{ $("onboard").classList.add("hidden"); store.set
   const ok=await enableSensors(); if(!ok) $("sensorBtn").classList.remove("hidden");
   startGps(); };
 
-buildRose(); applyTheme(); applyFont(); applyUnit(); applyCoordFmt(); updateLimitBtns();
+// buildRose(); // v1.5: compass off — restore with the commented-out buildRose()
+applyTheme(); applyFont(); applyUnit(); applyCoordFmt(); updateLimitBtns();
 document.querySelectorAll(".gps-mode-btn").forEach(b=>b.textContent=S.sampling==="accurate"?"Accurate":"Basic");
 setPage(page); // restore last view
 document.querySelectorAll("#sampleChoice button").forEach(b=>b.classList.toggle("sel",b.dataset.mode===S.sampling));
